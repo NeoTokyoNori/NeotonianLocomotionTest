@@ -1,13 +1,33 @@
 ﻿/*
+2016-07-15 Fri 21:27
+trying to make    void RunSpeedControl()
+    fuckikng startcoutroutine won't  pass agrument!
+
+   StartCoroutine(CalcInputSpeed(RunSpeed, touchAxis.y)); NG WTF  
+
+   running speed onTouch makes bad sudden motion 
+      but tyring to contorl speed on Click, conflickets with main click too much 
+
+---------------------------------------------------------------
 2016-07-15 Fri 14:36
-        //cannot do HmdInertialVelocity_1 and 2 at same time, unless there is a separate condition to check 
-        //&& HmdInertialVelocity_1.normalized != Vector3.zero
+there is a strange stop and go, when changing acceleration  direciton - fixed 
+    currentGVPermission == false is happening on direction change ?
+    so it starts decceleration 
+
+//have to account for multiple direction changes, not just from 1 to 2 
+    use HmdInertiaVel_Current ?
+
+private void GazeVectorVsInertiaCheck()
+//cannot do HmdInertiaVel_1 and 2 at same time, unless there is a separate condition to check 
+       //&& HmdInertiaVel_1.normalized != Vector3.zero
 
 ---------------------------------------------------------------
 2016-07-13 Wed 23:51
 won't  fucking move ata all - can't  stop it from colliding with floor  
     WTF is it   OnCollisionStay: LEVEL-01  and not the floor tiles?
-    it was fucking invisible vertices left around from blender !!!!
+    there was fucking invisible vertices left around from blender !!
+    still NG 
+
 ---------------------------------------------------------------
    StartCoroutine(CalcInputSpeed(RunSpeed, touchAxis.y)); NG WTF  
 
@@ -21,7 +41,7 @@ GazeVectoring is needed, due to lack of precision
     return to 2 step chec  
      finally apears to work1
 
-     ---------------------------------------------------------------
+-------------------------------------------------------------
 Locomotion not robust yet 
 first acceleration NG?
 trigger threshold 
@@ -68,7 +88,7 @@ using gravity fucking creates too much drag !!
     have to turn it on and off!?
 
 start and stop magnitude calibration 
-    if (Mathf.Abs(HmdInertialVelocity_1.magnitude) > 0.10)
+    if (Mathf.Abs(HmdInertiaVel_1.magnitude) > 0.10)
 
 
 2016-07-02 Sat 00:54
@@ -126,11 +146,11 @@ using UnityEngine;
 
         private Vector3 HmdXYZPos_t1;
         private Vector3 HmdXYZPos_t2;
-        private Vector3 HmdInertialVelocity_1;
-        private Vector3 HmdInertialVelocity_2;
-        private Vector3 HmdInertialVelocity_Current;
+        private Vector3 HmdInertiaVel_1;
+        private Vector3 HmdInertiaVel_2;
+        private Vector3 HmdInertiaVel_Current;
 
-    private float HmdYPos;
+        private float HmdYPos;
 
         private Vector3 TorsoPos_t1;
         private Vector3 TorsoPos_t2;
@@ -234,10 +254,10 @@ using UnityEngine;
                 HmdXYZPos_t1 = Hmd_Transform.localPosition;
                 //                Debug.Log("HmdXYZPos_t1.x:" + HmdXYZPos_t1.x);
                 SamplingVelocity = true;
-                HmdInertialVelocity_1 = Vector3.zero; //ok as initial condittion?
-                HmdInertialVelocity_2 = Vector3.zero; //
+                HmdInertiaVel_1 = Vector3.zero; //ok as initial condittion?
+                HmdInertiaVel_2 = Vector3.zero; //
+//                HmdInertiaVel_Current = Vector3.zero;
 
-            //                Torso_Rb.useGravity = false;
         }
 
 
@@ -249,15 +269,16 @@ using UnityEngine;
                 //    SamplingVelocity == allways true in current code
                 if (DoingLocomotion == false)
                 {
-                    HmdInertialVelocity_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
-//                    Debug.Log("HmdInertialVelocity_1. X: " + HmdInertialVelocity_1.x);
-                    //                 Debug.Log("HmdInertialVelocity_1. Y: " + HmdInertialVelocity_1.y);            
+                    HmdInertiaVel_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
+//                    Debug.Log("HmdInertiaVel_1. X: " + HmdInertiaVel_1.x);
+                    //                 Debug.Log("HmdInertiaVel_1. Y: " + HmdInertiaVel_1.y);            
                 }
                 else if (DoingLocomotion == true)
                 {
-                    HmdInertialVelocity_2 = HmdXYZPos_t2 - HmdXYZPos_t1;
-//                    Debug.Log("HmdInertialVelocity_2. X: " + HmdInertialVelocity_2.x);
-                    //                Debug.Log("HmdInertialVelocity_2. Z: " + HmdInertialVelocity_2.z);
+                    HmdInertiaVel_2 = HmdXYZPos_t2 - HmdXYZPos_t1;
+                //                    Debug.Log("HmdInertiaVel_2. X: " + HmdInertiaVel_2.x);
+                //                Debug.Log("HmdInertiaVel_2. Z: " + HmdInertiaVel_2.z);
+
                 }
 
                 HorizontalVelocityCheck();
@@ -281,14 +302,14 @@ using UnityEngine;
             if (DoingLocomotion == true)
             {
                 //stop if reverse inertia  - but magnitude should be a factor too?
-                if (Vector3.Dot(HmdInertialVelocity_1.normalized, HmdInertialVelocity_2.normalized) < -0.70f)
+                if (Vector3.Dot(HmdInertiaVel_1.normalized, HmdInertiaVel_2.normalized) < -0.70f)
                 {
                     Debug.Log("Reverse inertia");
 //                    DoingLocomotion = false;
                     SamplingVelocity = false;
                     Torso_Rb.useGravity = false;
-                    HmdInertialVelocity_1 = Vector3.zero;
-                    HmdInertialVelocity_2 = Vector3.zero;
+                    HmdInertiaVel_1 = Vector3.zero;
+                    HmdInertiaVel_2 = Vector3.zero;
 
                     StopCoroutine("Acceleration");//
                     StartCoroutine("Decceleration");
@@ -298,17 +319,17 @@ using UnityEngine;
 
                 // stop Locomotion if no v on second click - have to allow some margin, esp for when things get intense 
                 //0.01f maybe too low, 0.02f still low? 
-                if ((Mathf.Abs(HmdInertialVelocity_2.z) < 0.03f) && (Mathf.Abs(HmdInertialVelocity_2.x) < 0.03f))
+                if ((Mathf.Abs(HmdInertiaVel_2.z) < 0.03f) && (Mathf.Abs(HmdInertiaVel_2.x) < 0.03f))
                 {
                                     Debug.Log("zero inertia");
 //                    DoingLocomotion = false;
                     SamplingVelocity = false;
                     Torso_Rb.useGravity = false;
-                    HmdInertialVelocity_1 = Vector3.zero;
-                    HmdInertialVelocity_2 = Vector3.zero;
+                    HmdInertiaVel_1 = Vector3.zero;
+                    HmdInertiaVel_2 = Vector3.zero;
 
-                    //                HmdInertialVelocity_2 = Vector3.zero;
-                    //                        HmdInertialVelocity_2 = GazeVector;
+                    //                HmdInertiaVel_2 = Vector3.zero;
+                    //                        HmdInertiaVel_2 = GazeVector;
 
                     StopCoroutine("Acceleration");//
                     StartCoroutine("Decceleration");
@@ -321,12 +342,12 @@ using UnityEngine;
             {
                 //first zx acceleration
                 //0.005f is too high, 0.0025f still high 
-                if ((Mathf.Abs(HmdInertialVelocity_1.z) > 0.0015f) || (Mathf.Abs(HmdInertialVelocity_1.x) > 0.0015f))
+                if ((Mathf.Abs(HmdInertiaVel_1.z) > 0.0015f) || (Mathf.Abs(HmdInertiaVel_1.x) > 0.0015f))
                 {
                     Debug.Log("first inertia");
                     SamplingVelocity = false;
                     Torso_Rb.useGravity = false;
-                    HmdInertialVelocity_1.y = 0f;
+                    HmdInertiaVel_1.y = 0f;
 
                     StopCoroutine("Decceleration");//
                     StartCoroutine("Acceleration");
@@ -336,72 +357,29 @@ using UnityEngine;
 
             //check new acceleration while moving - needs to have higher threshold, to avoid unwanted motion 
             //0.005 maybe too low 
-            if ((Mathf.Abs(HmdInertialVelocity_2.z) > 0.0075f) || (Mathf.Abs(HmdInertialVelocity_2.x) > 0.0075f))
+            if ((Mathf.Abs(HmdInertiaVel_2.z) > 0.0075f) || (Mathf.Abs(HmdInertiaVel_2.x) > 0.0075f))
             {
-                            Debug.Log("secondainertia");
+//                            Debug.Log("secondainertia");
 //                DoingLocomotion = true;
                 SamplingVelocity = false;
                 Torso_Rb.useGravity = false;
-                HmdInertialVelocity_1 = Vector3.zero;
-                HmdInertialVelocity_2.y = 0f;
+
+                HmdInertiaVel_1 = Vector3.zero;
+                HmdInertiaVel_2.y = 0f;
 
                 StopCoroutine("Decceleration");//
                 StartCoroutine("Acceleration");
-            }
-
+                StartCoroutine("GazeTracking");
         }
+
+    }
 
         //----------------------------------------------------------------
-        void VerticalVelocityCheck()
-        {
-            if (Hmd_Transform.localPosition.y <= HmdYPos)
-            {
-                DoingJump = false;
-                Torso_Rb.useGravity = false;
-            }
-
-            //if in middle of jump, stop jump  and come down
-            if (DoingJump == true)
-            {
-                Debug.Log("Stop Jump");
-                Torso_Rb.useGravity = true;
-            }
-
-            if (DoingJump == false)
-            {
-                HmdYPos = Hmd_Transform.localPosition.y;
-
-                //have to detect jump first, otherwise y=0
-                if (HmdInertialVelocity_1.y > +0.05f)
-                {
-                    Debug.Log("Jump detected");
-                    SamplingVelocity = false;
-                    JumpDo();
-                    DoingJump = true;
-                }
-                else
-                {
-                    //                    Debug.Log("Jump NOT detected");
-                    SamplingVelocity = false;
-                    DoingJump = false;
-                    HmdInertialVelocity_1.y = 0f;
-                }
-            }
-        }
-
-        //---------------------------------------------------------------
-        void JumpDo()
-        {
-            //        Torso_Rb.AddForce(transform.up * Physics.gravity.y * -anitiGravityBoost);// 
-            Torso_Rb.AddForce(transform.up * Physics.gravity.y * -1000f);// 
-        }
-
-        //---------------------------------------------------------------
         public float accelBoost1 = 350f; //250f too low , 1000 too high  
         public float accelBoost2 = 10f; //
 
-        public float accelSmooth = 10f; //larger means faster - note:cannot stop until done 
-        public float deccelSmooth = 10f; //larger means faster 
+        public float accelSmooth = 10f; //larger means faster
+        public float deccelSmooth = 10f; //larger means faster  - note:cannot stop until done  
         public float gazeBoost = 10f;
         public float anitiGravityBoost = 1000f;
 
@@ -410,24 +388,29 @@ using UnityEngine;
 
         IEnumerator Acceleration()
         {
-            Debug.Log("Acceleration #0");
+//            Debug.Log("Acceleration #0");
             AccelCR_started = true;
             Torso_Rb.useGravity = false;
 
             if (DoingLocomotion == false)
             {
                 Debug.Log("Acceleration #1");
-                Torso_Rb.velocity = Vector3.Lerp(HmdInertialVelocity_1, HmdInertialVelocity_1 * accelBoost1, accelSmooth * Time.deltaTime);
+                Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVel_1, HmdInertiaVel_1 * accelBoost1, 20f * Time.deltaTime);
+
+//                HmdInertiaVel_Current = HmdInertiaVel_1;
                 DoingLocomotion = true;
                 yield return null;
             }
             else if (DoingLocomotion == true)
             {
-                            Debug.Log("Acceleration #2");
-                //maybe NG            Torso_Rb.velocity = HmdInertialVelocity_1 + (HmdInertialVelocity_2 * 10f)  ; //can get too tricky?
+                Debug.Log("Acceleration #2");
+                //maybe NG            Torso_Rb.velocity = HmdInertiaVel_1 + (HmdInertiaVel_2 * 10f)  ; //can get too tricky?
 
-                Torso_Rb.velocity = Vector3.Lerp(HmdInertialVelocity_1, HmdInertialVelocity_2 * accelBoost1, accelSmooth * Time.deltaTime);
+                //have to account for multiple direction changes, not just from 1 to 2 
+//                Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVel_Current, HmdInertiaVel_2 * accelBoost1, accelSmooth * Time.deltaTime);
+                Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, HmdInertiaVel_2 * accelBoost1, 20f * Time.deltaTime);
 
+//                HmdInertiaVel_Current = HmdInertiaVel_2;
                 DoingLocomotion = true;
                 yield return null;
             }
@@ -483,8 +466,53 @@ using UnityEngine;
 
         }
 
-        //---------------------------------------------------------------
-        private Vector3 GazeVector;
+    //---------------------------------------------------------------
+    void VerticalVelocityCheck()
+    {
+        if (Hmd_Transform.localPosition.y <= HmdYPos)
+        {
+            DoingJump = false;
+            Torso_Rb.useGravity = false;
+        }
+
+        //if in middle of jump, stop jump  and come down
+        if (DoingJump == true)
+        {
+            Debug.Log("Stop Jump");
+            Torso_Rb.useGravity = true;
+        }
+
+        if (DoingJump == false)
+        {
+            HmdYPos = Hmd_Transform.localPosition.y;
+
+            //have to detect jump first, otherwise y=0
+            if (HmdInertiaVel_1.y > +0.05f)
+            {
+                Debug.Log("Jump detected");
+                SamplingVelocity = false;
+                JumpDo();
+                DoingJump = true;
+            }
+            else
+            {
+                //                    Debug.Log("Jump NOT detected");
+                SamplingVelocity = false;
+                DoingJump = false;
+                HmdInertiaVel_1.y = 0f;
+            }
+        }
+    }
+
+    //---------------------------------------------------------------
+    void JumpDo()
+    {
+        //        Torso_Rb.AddForce(transform.up * Physics.gravity.y * -anitiGravityBoost);// 
+        Torso_Rb.AddForce(transform.up * Physics.gravity.y * -1000f);// 
+    }
+
+    //---------------------------------------------------------------
+    private Vector3 GazeVector;
         private float GazeCenter_t0;
         private float GazeCenter_t1;
         private float GazeCenter_t2;
@@ -492,8 +520,8 @@ using UnityEngine;
         private float GazeLeftLimit;
         private float GazeRightLimit;
         private float GazeTimer;
-        private bool GazeMaintained1 = false;
-        private bool GazeMaintained2 = false;
+        private bool GazeMaintained_t1 = false;
+        private bool GazeMaintained_t2 = false;
 
         bool GazeVectoringPermitted = false;
         bool RunSpeedPermitted = false;
@@ -506,8 +534,8 @@ using UnityEngine;
 
             while (DoingLocomotion == true)
             {
-                GazeMaintained1 = false;
-                GazeMaintained2 = false;
+                GazeMaintained_t1 = false;
+                GazeMaintained_t2 = false;
 
                 GazeCenter_t0 = Hmd_Transform.eulerAngles.y;
                 GazeLeftLimit = GazeCenter_t0 - 20; //need to tune this , 360 issue ?
@@ -516,7 +544,7 @@ using UnityEngine;
                 //            print("GazeCenter_t0 time:" + Time.time);
                 //            Debug.Log("GazeCenter_t0 angle: " + GazeCenter_t0);
 
-                yield return new WaitForSeconds(1);
+                yield return new WaitForSeconds(0.75f);
 
                 GazeCenter_t1 = Hmd_Transform.eulerAngles.y;
 
@@ -526,28 +554,25 @@ using UnityEngine;
                 //does this handle the 360-0 issue ?
                 if (GazeLeftLimit < GazeCenter_t1 && GazeCenter_t1 < GazeRightLimit)
                 {
-                    Debug.Log("IEnumerator GazeMaintained1 = true: " + Time.time);
-                    GazeMaintained1 = true;
-                    //                GazeVector = Hmd_Transform.forward;
-                    //                GazeVector.y = 0f;
-                    //                GazeVectoring();
+//                    Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
+                    GazeMaintained_t1 = true;
                 }
                 else
                 {
-                    GazeMaintained1 = false;
+                    GazeMaintained_t1 = false;
                     yield return null;
                 }
 
-                yield return new WaitForSeconds(1f);
+                yield return new WaitForSeconds(0.75f);
 
-                if (GazeMaintained1 == true)
+                if (GazeMaintained_t1 == true)
                 {
                     GazeCenter_t2 = Hmd_Transform.eulerAngles.y;
 
                     while (GazeLeftLimit < GazeCenter_t2 && GazeCenter_t2 < GazeRightLimit)
                     {
-                        Debug.Log("IEnumerator GazeMaintained2 = true: " + Time.time);
-                        GazeMaintained2 = true;
+//                        Debug.Log("IEnumerator GazeMaintained_t2 = true: " + Time.time);
+                        GazeMaintained_t2 = true;
                         GazeVector = Hmd_Transform.forward;
                         GazeVector.y = 0f;
                         GazeVectoring();
@@ -556,18 +581,9 @@ using UnityEngine;
 
                     yield return null;
 
-                }//            if (GazeMaintained1 == true)
+                }//            if (GazeMaintained_t1 == true)
 
             }//        while (DoingLocomotion == true)
-
-            /*
-                            if (!(GazeCenter_t2 > GazeLeftLimit) || !(GazeCenter_t2 < GazeRightLimit))
-                            {
-                                GazeMaintained2 = false;
-                                GazeVector = Vector3.zero;
-                                yield return null;
-                            }
-                 */
 
         }
 
@@ -576,69 +592,60 @@ using UnityEngine;
         {
             if (GazeVectoringPermitted == true)
             {
-                Debug.Log("GazeVectoring doing ");
+                Debug.Log("Doing GazeVectoring ");
                 //NG                Torso_Rb.AddForce(GazeVector * 1000f, ForceMode.VelocityChange);//
                 //            Torso_Rb.AddForce(GazeVector * gazeBoost, ForceMode.Impulse);//seems to work 
-                //           Torso_Rb.velocity = (GazeVector * 100f) + HmdInertialVelocity_1; //try this method
+                //           Torso_Rb.velocity = (GazeVector * 100f) + HmdInertiaVel_1; //try this method
 
-                //            Torso_Rb.velocity = Vector3.Slerp(HmdInertialVelocity_1, GazeVector * 100f, 1f * Time.deltaTime);
-                Torso_Rb.velocity = Vector3.Lerp(HmdInertialVelocity_1, GazeVector * 75f, accelSmooth * Time.deltaTime);
+                //            Torso_Rb.velocity = Vector3.Slerp(HmdInertiaVel_1, GazeVector * 100f, 1f * Time.deltaTime);
+                Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, GazeVector * 75f, 20f * Time.deltaTime);
 
             }
         }
 
-        //----------------------------------------------------------------
-        bool currentGVPermission;
-        bool previousGVPermission;
+    //----------------------------------------------------------------
+    bool currentGVPermission;
+    bool previousGVPermission;
 
-    //so I don't  start moving fwd, while moving back
+    //need to check that direction I am looking at, and direction that my body is moving, are within same angle window, in order to allow gavevectoring
+    //For normalized vectors Dot returns -1 if they point in completely opposite directions 
+    // 0 if the vectors are perpendicular.
+    // Dot product is positive for vectors in the same general direction
     private void GazeVectorVsInertiaCheck()
     {
-        //cannot do HmdInertialVelocity_1 and 2 at same time, unless there is a separate condition to check 
-        //&& HmdInertialVelocity_1.normalized != Vector3.zero
-
-        //For normalized vectors Dot returns -1 if they point in completely opposite directions 
-        // 0 if the vectors are perpendicular.
-        // Dot product is positive for vectors in the same general direction
-
+        //        print("GazeVectorVsInertiaCheck: " + Time.time);
+        //cannot do HmdInertiaVel_1 and 2 at same time, unless there is a separate condition to check ?
+        //&& HmdInertiaVel_1.normalized != Vector3.zero
         //if one of the vectors is zero - dot is zero issue !
 
-        //        if (Vector3.Dot(GazeVector.normalized, HmdInertialVelocity_1.normalized) > -0.2f)
-        if (Vector3.Dot(Hmd_Transform.forward, HmdInertialVelocity_1.normalized) > -0.2f && HmdInertialVelocity_1.normalized != Vector3.zero)
+        //Hmd_Transform.forward has y vector included so NG ? but GazeVector has to get fixupdated to use 
+        //        if (Vector3.Dot(GazeVector.normalized, Torso_Rb.velocity.normalized) > -0.2f && GazeVector != Vector3.zero)
+        if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > -0.2f)
         {
-            //            Debug.Log("GazeVectorVsInertiaCheck ok");
-            GazeVectoringPermitted = true;
-            currentGVPermission = true;
-            RunSpeedPermitted = true;
-        }
-        else if (Vector3.Dot(Hmd_Transform.forward, HmdInertialVelocity_2.normalized) > -0.2f && HmdInertialVelocity_2.normalized != Vector3.zero)
-        { 
+//            print("GazeVectoringPermitted = true; " + Time.time);
             GazeVectoringPermitted = true;
             currentGVPermission = true;
             RunSpeedPermitted = true;
         }
         else
         {
+//            print("GazeVectoringPermitted = false; " + Time.time);
             GazeVectoringPermitted = false;
             currentGVPermission = false;
             RunSpeedPermitted = false;
-
-            //            GazeVector = Vector3.zero;
-            //            HmdInertialVelocity_1 = Vector3.zero;
+        }
+        //---------------------------------------------------------------
+        //if it goes from GazeVectoringPermitted = true to false;
+        //then Locomotion should be shut off, and not start moving again 
+        if (currentGVPermission == false && previousGVPermission == true)
+        {
+            Debug.Log("currentGVPermission == false: "+ Time.time);
+            StartCoroutine("Decceleration");
         }
 
-            //---------------------------------------------------------------
-            //if it goes from GazeVectoringPermitted = true to false;
-            //then Locomotion should be shut off, and not start moving again 
-            if (currentGVPermission == false && previousGVPermission == true)
-            {
-                Debug.Log("currentGVPermission == false");
-                StartCoroutine("Decceleration");
-            }
+        previousGVPermission = currentGVPermission;
 
-            previousGVPermission = currentGVPermission;
-
-        }
+    }
 
     //---------------------------------------------------------------
         Collider Floor_Col;
@@ -702,7 +709,7 @@ using UnityEngine;
 
         if (DoingLocomotion == true && RunSpeedPermitted == true)
         {
-            //            Torso_Rb.velocity = Vector3.Lerp(HmdInertialVelocity_1, GazeVector * 100f, accelSmooth * Time.deltaTime);
+            //            Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVel_1, GazeVector * 100f, accelSmooth * Time.deltaTime);
             //            Torso_Rb.AddForce(Torso_Rb.velocity * SpeedDelta, ForceMode.Impulse);//
             Torso_Rb.AddForce(Torso_Rb.velocity.normalized * SpeedDelta * 200f, ForceMode.Impulse);//
         }
@@ -839,26 +846,26 @@ using UnityEngine;
                     DoingLocomotion = true;
 
                     GazeTimer = 0f;
-                    GazeMaintained2 = false;
+                    GazeMaintained_t2 = false;
                 }
                 else { //on second click 
                     SamplingVelocity = false;
                     DoingLocomotion = false;
 
                     //---------------------------------------------------------------
-                    //            Decelerate_Velocity(ref HmdInertialVelocity_1);
+                    //            Decelerate_Velocity(ref HmdInertiaVel_1);
                     //            Decelerate_Velocity(Torso_Rb.velocity);
 
                     //            Torso_Rb.velocity = Vector3.Lerp(Vector3.zero, Torso_Rb.velocity, 0.5f);
-                    //            HmdInertialVelocity_1 = Vector3.zero;
+                    //            HmdInertiaVel_1 = Vector3.zero;
 
                     StartCoroutine("Decceleration");
 
                     //StoppedTimer = 0f;
                     //NG            Torso_Rb.AddForce(Vector3.zero);//no effect 
-                    //            Torso_Rb.AddForce(-HmdInertialVelocity_1);
+                    //            Torso_Rb.AddForce(-HmdInertiaVel_1);
                     //            Torso_Rb.velocity = Vector3.zero;
-                    //Torso_Rb.velocity = HmdInertialVelocity_1;
+                    //Torso_Rb.velocity = HmdInertiaVel_1;
 
                 }
             }
@@ -871,9 +878,9 @@ using UnityEngine;
                 if (DoingLocomotion = true && SamplingVelocity == true)
                 {
                     HmdXYZPos_t2 = Hmd_Transform.position;
-                    //calc HmdInertialVelocity_1 
-                    HmdInertialVelocity_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
-                    HmdInertialVelocity_1.y = 0f;
+                    //calc HmdInertiaVel_1 
+                    HmdInertiaVel_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
+                    HmdInertiaVel_1.y = 0f;
 
                     NewtonianAcceleration();
                 }
@@ -885,11 +892,11 @@ using UnityEngine;
         private void NewtonianAcceleration()
         {
 
-            if (HmdInertialVelocity_1 != Vector3.zero && GazeMaintained2 == false)
+            if (HmdInertiaVel_1 != Vector3.zero && GazeMaintained_t2 == false)
             {
                 //normalized vs not 
-                //            Torso_Rb.AddForce(HmdInertialVelocity_1.normalized * accelBoost1, ForceMode.Impulse);//
-                //           Torso_Rb.AddForce(HmdInertialVelocity_1.normalized * accelBoost1);//seems more controllable //27500f
+                //            Torso_Rb.AddForce(HmdInertiaVel_1.normalized * accelBoost1, ForceMode.Impulse);//
+                //           Torso_Rb.AddForce(HmdInertiaVel_1.normalized * accelBoost1);//seems more controllable //27500f
 
                 //            Torso_Rb.AddForce(Hmd_Rb.transform.forward * accelBoost1, ForceMode.Impulse);//
                 //            Torso_Rb.AddForce(Hmd_Rb.transform.forward * accelBoost1);//
