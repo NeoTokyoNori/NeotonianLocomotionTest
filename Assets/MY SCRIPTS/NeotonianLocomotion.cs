@@ -1,12 +1,47 @@
 ﻿/*
+
+--------------------------------------------------------------
+2016-07-17 Sun 
+gazevectoring countdown indicator needed 
+        make static vesion first ?
+        show bounding box for gazevectoring window 
+        show dot or circle for center of gaze
+        need to control it with code
+
+        animated UI elemet
+        vs LineRenderer ~ defining and animating all the points with be PIA
+
+        vertical lines like window/corridor/walls?
+            easier for showing view angle window threshold?
+            cannot cover up the actual view
+            distance to issue
+                don't  want it to be behind objects 
+                perspective can be faked, no need to be real 
+                just put the plane at 1m in front?
+            needs animation to show timing 
+            vertical lines moving toward center?    
+
+            arrows?
+        circle that gets smaller toward center?
+    
+    how to make it not be in your face all the time 
+        make Y view anlge narrow 
+        Hmd_Transform.eulerAngles.x - zero is horozontal +90 is down 
+            45 degs up, and 45 down?
+
+        want to be able to just look in the direction, not have to look at ground 
+        want to be able to look off window easily enough too         
+
+        only showss when doing Locomotion 
+---------------------------------------------------------------
 2016-07-15 Fri 21:27
+colliders 
+    convex not needed 
+    need decceleration on col
+---------------------------------------------------------------
 trying to make    void RunSpeedControl()
-    fuckikng startcoutroutine won't  pass agrument!
-
    StartCoroutine(CalcInputSpeed(RunSpeed, touchAxis.y)); NG WTF  
-
-   running speed onTouch makes bad sudden motion 
-      but tyring to contorl speed on Click, conflickets with main click too much 
+   fuckikng startcoutroutine won't  pass agrument!
 
 ---------------------------------------------------------------
 2016-07-15 Fri 14:36
@@ -101,12 +136,6 @@ run+jump
     re organized buton press code !! so can do it 
 //---------------------------------------------------------------
 NOTES
-controlling Torso_Rb.velocity will create non stop motion?
-
-2016-06-17 Fri
-He fucking uses these as separate !!
-trackedControllers
-trackedController
 
 //---------------------------------------------------------------
 Built by Robert Stephenson and Company in 1824.
@@ -185,9 +214,13 @@ using UnityEngine;
             Torso_Rb = this.GetComponent<Rigidbody>();
             Torso_Rb.useGravity = false;
             Torso_Col = this.GetComponent<Collider>();
-            
-            
-            PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
+
+            //added
+            Collider Floor_Col;
+            Floor_Col = GameObject.FindWithTag("FLOOR").GetComponent<Collider>();
+            Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
+
+                PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
 
             //        transform.SetParent(PlayArea);
             //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
@@ -202,11 +235,14 @@ using UnityEngine;
 
         private void Update()
         {
-            //        Debug.Log("GazeVectoringPermitted: " + GazeVectoringPermitted);
-            //        Debug.Log("DoingLocomotion: " + DoingLocomotion);
-            //        Debug.Log("Torso_Rb.velocity.magnitude:" + Torso_Rb.velocity.magnitude);
+        print("Hmd_Transform.eulerAngles.z; " + Hmd_Transform.eulerAngles.z);
+        print("Hmd_Transform.eulerAngles.x; " + Hmd_Transform.eulerAngles.x);
 
-            RotatePlayArea();
+        //        Debug.Log("GazeVectoringPermitted: " + GazeVectoringPermitted);
+        //        Debug.Log("DoingLocomotion: " + DoingLocomotion);
+        //        Debug.Log("Torso_Rb.velocity.magnitude:" + Torso_Rb.velocity.magnitude);
+
+        RotatePlayArea();
         }
 
         private void FixedUpdate()
@@ -530,10 +566,11 @@ using UnityEngine;
         //adjust angle window 
         IEnumerator GazeTracking()
         {
-            //        Debug.Log("IEnumerator GazeTracking 1");
+        //        Debug.Log("IEnumerator GazeTracking 1");
 
-            while (DoingLocomotion == true)
+        while (DoingLocomotion == true)
             {
+
                 GazeMaintained_t1 = false;
                 GazeMaintained_t2 = false;
 
@@ -648,16 +685,12 @@ using UnityEngine;
     }
 
     //---------------------------------------------------------------
-        Collider Floor_Col;
 
         //have to make sure that I am not auto colliding with floor on start
         void OnCollisionStay(Collision collision)
         {
             Debug.Log("OnCollisionStay: " + collision.collider);
-            Floor_Col = GameObject.FindWithTag("FLOOR").GetComponent<Collider>();
-
-            Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
-
+        
             if (DoingLocomotion == true && SamplingVelocity == false && collision.gameObject.isStatic == true)
             {
 

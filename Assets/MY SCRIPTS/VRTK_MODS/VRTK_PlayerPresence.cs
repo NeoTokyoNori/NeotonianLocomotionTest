@@ -1,6 +1,5 @@
 ﻿/*
 2016-07-13 Wed 23:51
-  VRTK_PlayerPresence is doing something fucked !!!
 it won't  fucking move ata all 
 
 2016-06-08 Wed 16:54
@@ -96,8 +95,6 @@ public class VRTK_PlayerPresence : MonoBehaviour
 
         this.gameObject.layer = 2;
 
-        //added
-        //Physics.IgnoreCollision(CapsuleCol, e.target.GetComponent<Collider>(), true);
 
     }
 

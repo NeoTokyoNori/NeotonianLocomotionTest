@@ -1,6 +1,6 @@
 fileFormatVersion: 2
 guid: 1883edcbfa93912418eff79cb2b2fcfd
-timeCreated: 1468560755
+timeCreated: 1468594741
 licenseType: Free
 ModelImporter:
   serializedVersion: 19
@@ -34,17 +34,17 @@ ModelImporter:
     animationWrapMode: 0
     extraExposedTransformPaths: []
     clipAnimations: []
-    isReadable: 1
+    isReadable: 0
   meshes:
     lODScreenPercentages: []
     globalScale: 1
-    meshCompression: 3
-    addColliders: 1
-    importBlendShapes: 1
+    meshCompression: 0
+    addColliders: 0
+    importBlendShapes: 0
     swapUVChannels: 0
     generateSecondaryUV: 0
     useFileUnits: 1
-    optimizeMeshForGPU: 1
+    optimizeMeshForGPU: 0
     keepQuads: 0
     weldVertices: 1
     secondaryUVAngleDistortion: 8
