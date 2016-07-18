@@ -105,26 +105,9 @@ have to separate these?
 GazeVectoringPermitted 
 RunSpeedPermitted
 ---------------------------------------------------------------
-2016-07-06 WEd 13:55
-make reverse inertia do stop 
-make it so new inertias can add/change direction ?
-    the logic is fucking complicated!!!
-
-2016-07-04 Mon 23:57
-GazeVectorVsInertiaCheck
-    won't  let me go back toweard direction I came from?
-    have to do one for start of motion?
-    and one for already doing gazevectoring then stops 
-have to stop it from starting to moving again, after stopping due to angle 
-
-
 using gravity fucking creates too much drag !!
     stops immediately
     have to turn it on and off!?
-
-start and stop magnitude calibration 
-    if (Mathf.Abs(HmdInertiaVel_1.magnitude) > 0.10)
-
 
 2016-07-02 Sat 00:54
 turned up the physics time 
@@ -144,10 +127,11 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
 
 **************************************************************/
 using UnityEngine;
-    using UnityStandardAssets.ImageEffects;//why grey 
-    using System.Collections;
-    using System.Collections.Generic;
-    using Valve.VR; //added
+using UnityEngine.UI;
+using UnityStandardAssets.ImageEffects;//why grey 
+using System.Collections;
+using System.Collections.Generic;
+using Valve.VR; //
 
     public class NeotonianLocomotion : MonoBehaviour
     {
@@ -221,33 +205,38 @@ using UnityEngine;
             Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
 
                 PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
+        //        transform.SetParent(PlayArea);
+        //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
 
-            //        transform.SetParent(PlayArea);
-            //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
-        }
+        gazeUITarget = this.transform.FindChild("GazeUITarget").gameObject;
+        gazeUITarget.SetActive(false);
 
-        /*
-        //    Vignetting test;
-            Vignetting theEffect = FindObjectOfType<Vignetting>();
-            theEffect.enabled = false;
+    }
 
-        */
+    /*
+    //    Vignetting test;
+        Vignetting theEffect = FindObjectOfType<Vignetting>();
+        theEffect.enabled = false;
 
-        private void Update()
+    */
+
+    private void Update()
         {
-        print("Hmd_Transform.eulerAngles.z; " + Hmd_Transform.eulerAngles.z);
-        print("Hmd_Transform.eulerAngles.x; " + Hmd_Transform.eulerAngles.x);
+        //        print("Hmd_Transform.eulerAngles.z; " + Hmd_Transform.eulerAngles.z);
+        //        print("Hmd_Transform.eulerAngles.x; " + Hmd_Transform.eulerAngles.x);
 
         //        Debug.Log("GazeVectoringPermitted: " + GazeVectoringPermitted);
         //        Debug.Log("DoingLocomotion: " + DoingLocomotion);
         //        Debug.Log("Torso_Rb.velocity.magnitude:" + Torso_Rb.velocity.magnitude);
 
-        RotatePlayArea();
+//        RotatePlayArea();
         }
 
         private void FixedUpdate()
         {
-            AccelControl();
+        ShowGazeUI();
+
+        AccelControl();
             VelocityLimiter();
 //            RunSpeedControl();
 
@@ -568,20 +557,20 @@ using UnityEngine;
         {
         //        Debug.Log("IEnumerator GazeTracking 1");
 
-        while (DoingLocomotion == true)
+            while (DoingLocomotion == true)
             {
 
                 GazeMaintained_t1 = false;
                 GazeMaintained_t2 = false;
 
                 GazeCenter_t0 = Hmd_Transform.eulerAngles.y;
-                GazeLeftLimit = GazeCenter_t0 - 20; //need to tune this , 360 issue ?
-                GazeRightLimit = GazeCenter_t0 + 20;
+                GazeLeftLimit = GazeCenter_t0 - 10; //need to tune this , 360 issue ?
+                GazeRightLimit = GazeCenter_t0 + 10;
 
                 //            print("GazeCenter_t0 time:" + Time.time);
                 //            Debug.Log("GazeCenter_t0 angle: " + GazeCenter_t0);
 
-                yield return new WaitForSeconds(0.75f);
+                yield return new WaitForSeconds(1.0f);
 
                 GazeCenter_t1 = Hmd_Transform.eulerAngles.y;
 
@@ -591,8 +580,9 @@ using UnityEngine;
                 //does this handle the 360-0 issue ?
                 if (GazeLeftLimit < GazeCenter_t1 && GazeCenter_t1 < GazeRightLimit)
                 {
-//                    Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
+                  Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
                     GazeMaintained_t1 = true;
+                    ShowGazeUI();
                 }
                 else
                 {
@@ -600,7 +590,7 @@ using UnityEngine;
                     yield return null;
                 }
 
-                yield return new WaitForSeconds(0.75f);
+                yield return new WaitForSeconds(0.5f);
 
                 if (GazeMaintained_t1 == true)
                 {
@@ -624,8 +614,49 @@ using UnityEngine;
 
         }
 
-        //---------------------------------------------------------------
-        void GazeVectoring()
+    //---------------------------------------------------------------
+    RaycastHit gazeRayHit;
+    GameObject gazeUITarget;
+    GameObject gazeUITargetClone;
+    float gazeUITargetDist = 1000f;
+
+    //does this need tobe a coroutine?
+    void ShowGazeUI()
+    {
+//        Physics.queriesHitTriggers = true;
+
+        // Bit shift the index of the layer (5) to get a bit mask
+        // This would cast rays only against colliders in layer 5.
+        int layerMask = 1 << 5;
+
+//        if (Physics.Raycast(Hmd_Transform.position, Hmd_Transform.forward, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
+        if (Physics.Raycast(Hmd_Transform.position, Hmd_Transform.forward, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
+        {
+            print("gazeRayHit; "+ gazeRayHit.collider);
+
+            if (gazeRayHit.collider.name == "GazeUISphere")
+            {
+                print("GazeUISphere hit");
+
+                //Instantiate as regualar object first
+                //try ui sprite later
+
+                GameObject gazeUITargetClone = Instantiate(gazeUITarget, gazeRayHit.point, Quaternion.FromToRotation(Vector3.up, gazeRayHit.normal)) as GameObject;
+
+                gazeUITargetClone.SetActive(true);
+            }
+        }
+
+
+        if (GazeMaintained_t2 == false) {
+//               Destroy(gazeUITargetClone);
+//            gazeUITargetClone.SetActive(false);
+        }
+
+    }
+
+    //---------------------------------------------------------------
+    void GazeVectoring()
         {
             if (GazeVectoringPermitted == true)
             {

@@ -143,7 +143,6 @@ public class GunV3 : MonoBehaviour{
         if (Physics.Raycast(transform.position, transform.up, out hit, maxDist))
         {
             Debug.Log("Hit");
-            yield return new WaitForSeconds(0.05f);
 
             GameObject bulletHoleClone = Instantiate(bulletHole, hit.point + (hit.normal * floatInFrontOfWall), Quaternion.FromToRotation(Vector3.up, hit.normal)) as GameObject;
 
@@ -154,6 +153,7 @@ public class GunV3 : MonoBehaviour{
             //play ping
             if (hit.transform.gameObject.layer == MetalTarget)
             {
+                yield return new WaitForSeconds(0.05f);    
                 AudioSource.PlayClipAtPoint(bulletHitSound, bulletHoleClone.transform.position);
             }
 
