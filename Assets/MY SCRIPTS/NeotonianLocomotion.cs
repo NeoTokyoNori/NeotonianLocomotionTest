@@ -46,13 +46,13 @@ trying to make    void RunSpeedControl()
 ---------------------------------------------------------------
 2016-07-15 Fri 14:36
 there is a strange stop and go, when changing acceleration  direciton - fixed 
-    currentGVPermission == false is happening on direction change ?
+    currentGazeVsInertiaOk == false is happening on direction change ?
     so it starts decceleration 
 
 //have to account for multiple direction changes, not just from 1 to 2 
     use HmdInertiaVel_Current ?
 
-private void GazeVectorVsInertiaCheck()
+private void GazeVsInertiaCheck()
 //cannot do HmdInertiaVel_1 and 2 at same time, unless there is a separate condition to check 
        //&& HmdInertiaVel_1.normalized != Vector3.zero
 
@@ -135,10 +135,11 @@ using Valve.VR; //
 
     public class NeotonianLocomotion : MonoBehaviour
     {
-        public float maxWalkSpeed = 4.0f;
         public float maxRunSpeed = 10.0f;
+        public float maxWalkSpeed = 4.0f;
+        public float maxSlowSpeed = 1.0f;
 
-        private Vector2 touchAxis;
+    private Vector2 touchAxis;
 //        private float RunSpeed = 0f;
         //    private float strafeSpeed = 0f;
 
@@ -155,6 +156,7 @@ using Valve.VR; //
         private Rigidbody Torso_Rb;
         private Collider Torso_Col;
 
+        private Transform BullsEyeTransform;
         private Transform PlayAreaTransform;
 
         private Vector3 HmdXYZPos_t1;
@@ -174,8 +176,10 @@ using Valve.VR; //
         private bool TouchpadAccel = false;
         private bool DoingJump = false;
 
-        //---------------------------------------------------------------
-        private void Awake()
+        public Animator Animator;
+
+    //---------------------------------------------------------------
+    private void Awake()
         {
             if (this.GetComponent<VRTK_PlayerPresence>())
             {
@@ -204,6 +208,7 @@ using Valve.VR; //
             Floor_Col = GameObject.FindWithTag("FLOOR").GetComponent<Collider>();
             Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
 
+        //---------------------------------------------------------------
                 PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
         //        transform.SetParent(PlayArea);
         //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
@@ -211,6 +216,12 @@ using Valve.VR; //
         gazeUITarget = this.transform.FindChild("GazeUITarget").gameObject;
         gazeUITarget.SetActive(false);
 
+            BullsEye = this.transform.FindChild("Bullseye").gameObject as GameObject;
+            BullsEyeTransform = this.transform.FindChild("Bullseye").transform as Transform;
+
+//        Animator = GetComponent<Animator>();
+        Animator = GetComponentInChildren<Animator>();
+        //            Animator = this.transform.FindChild("Bullseye").anima;
     }
 
     /*
@@ -242,7 +253,8 @@ using Valve.VR; //
 
             while (DoingLocomotion == true)
             {
-                GazeVectorVsInertiaCheck();
+                GazeVsInertiaCheck();
+                GazeVectoringPermissionCheck();
                 break;
             }
 
@@ -424,6 +436,8 @@ using Valve.VR; //
 
 //                HmdInertiaVel_Current = HmdInertiaVel_1;
                 DoingLocomotion = true;
+
+
                 yield return null;
             }
             else if (DoingLocomotion == true)
@@ -458,6 +472,17 @@ using Valve.VR; //
             }
 
 
+            if (DoingLocomotion == true && Torso_Rb.velocity.magnitude > 0.2f)
+            {
+                Animator.SetTrigger("RaiseBullseye");
+                Debug.Log("RaiseBullseye");
+            }
+            else
+                {
+//                    Animator.SetTrigger("LowerBullseye");
+//                Debug.Log("LowerBullseye");
+            }
+
     }
 
 
@@ -474,7 +499,9 @@ using Valve.VR; //
                 //            DoingJump = false;
                 //            Torso_Rb.useGravity = true;
                 GazeVectoringPermitted = false;
-                yield return null;
+            Animator.SetTrigger("LowerBullseye");
+            Debug.Log("LowerBullseye");
+            yield return null;
             }
 
             //the tail takes too long, so speed it up
@@ -486,7 +513,7 @@ using Valve.VR; //
                 DoingLocomotion = false;
                 //            Torso_Rb.useGravity = true;
                 GazeVectoringPermitted = false;
-                yield return null;
+            yield return null;
             }
 
         }
@@ -537,6 +564,36 @@ using Valve.VR; //
     }
 
     //---------------------------------------------------------------
+    GameObject BullsEye;
+    //'Bullseye' AnimationEvent has no function name specified!
+
+    //want height to lerp according to velocity magnitude
+    //can it be done as animation?
+    void AnimateBullseyeHeight()
+    {
+        //        Animator.SetFloat(BullsEye.transform.position.y, Torso_Rb.velocity.magnitude);
+        //        Animator.SetFloat(BullsEyeHeight, Torso_Rb.velocity.magnitude);
+        if(Torso_Rb.velocity.magnitude > 0.1f){
+ //           Animator.SetTrigger("RaiseBullseye");
+        }
+
+
+    }
+
+    void ControlBullseyeHeight()
+    {
+        float BullsEyeTransformY;
+        Vector3 BullsEyeTransformUp;
+
+        BullsEyeTransformY = Mathf.Lerp(BullsEyeTransform.position.y, BullsEyeTransform.position.y + 1f, Time.deltaTime);
+
+        BullsEyeTransformUp = new Vector3(BullsEyeTransform.position.x, BullsEyeTransformY, BullsEyeTransform.position.z);
+
+        BullsEyeTransform.position = Vector3.Lerp(BullsEyeTransform.position, BullsEyeTransformUp, Time.deltaTime);
+
+    }
+
+    //---------------------------------------------------------------
     private Vector3 GazeVector;
         private float GazeCenter_t0;
         private float GazeCenter_t1;
@@ -580,7 +637,7 @@ using Valve.VR; //
                 //does this handle the 360-0 issue ?
                 if (GazeLeftLimit < GazeCenter_t1 && GazeCenter_t1 < GazeRightLimit)
                 {
-                  Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
+//                  Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
                     GazeMaintained_t1 = true;
                     ShowGazeUI();
                 }
@@ -623,20 +680,17 @@ using Valve.VR; //
     //does this need tobe a coroutine?
     void ShowGazeUI()
     {
-//        Physics.queriesHitTriggers = true;
-
-        // Bit shift the index of the layer (5) to get a bit mask
-        // This would cast rays only against colliders in layer 5.
+        // Bit shift the index of the layer (5) to get a bit mask. Cast rays only against colliders in layer 5.
         int layerMask = 1 << 5;
 
-//        if (Physics.Raycast(Hmd_Transform.position, Hmd_Transform.forward, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
-        if (Physics.Raycast(Hmd_Transform.position, Hmd_Transform.forward, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
+        if (Physics.Raycast(Hmd_Transform.position, Hmd_Transform.forward, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
+//        if (Physics.Raycast(Ray.get, Hmd_Transform.position, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
         {
             print("gazeRayHit; "+ gazeRayHit.collider);
 
-            if (gazeRayHit.collider.name == "GazeUISphere")
+            if (gazeRayHit.collider.name == "GazeUICube")
             {
-                print("GazeUISphere hit");
+                print("GazeUICube hit");
 
                 //Instantiate as regualar object first
                 //try ui sprite later
@@ -672,46 +726,61 @@ using Valve.VR; //
         }
 
     //----------------------------------------------------------------
-    bool currentGVPermission;
-    bool previousGVPermission;
+    //GazeVectoringPermission window angle needs to be narrower, so I can strafe shoot 
+    //also to limit when it kicks in 
+    private void GazeVectoringPermissionCheck()
+    {
+        if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > +0.25f)
+        {
+            //            print("GazeVectoringPermitted = true; " + Time.time);
+            GazeVectoringPermitted = true;
+            RunSpeedPermitted = true;
+        }
+        else
+        {
+            //            print("GazeVectoringPermitted = false; " + Time.time);
+            GazeVectoringPermitted = false;
+            RunSpeedPermitted = false;
+        }
+    }
 
-    //need to check that direction I am looking at, and direction that my body is moving, are within same angle window, in order to allow gavevectoring
+    //---------------------------------------------------------------
+    bool currentGazeVsInertiaOk;
+    bool previousGazeVsInertiaOk;
+
+    //check that gaze direction, torso velecoty are within same angle window, 
+    //I can look around while moving, but stop moving when I turn more than angle x. 
+    
     //For normalized vectors Dot returns -1 if they point in completely opposite directions 
     // 0 if the vectors are perpendicular.
     // Dot product is positive for vectors in the same general direction
-    private void GazeVectorVsInertiaCheck()
+    private void GazeVsInertiaCheck()
     {
-        //        print("GazeVectorVsInertiaCheck: " + Time.time);
+        //        print("GazeVsInertiaCheck: " + Time.time);
         //cannot do HmdInertiaVel_1 and 2 at same time, unless there is a separate condition to check ?
         //&& HmdInertiaVel_1.normalized != Vector3.zero
         //if one of the vectors is zero - dot is zero issue !
 
         //Hmd_Transform.forward has y vector included so NG ? but GazeVector has to get fixupdated to use 
         //        if (Vector3.Dot(GazeVector.normalized, Torso_Rb.velocity.normalized) > -0.2f && GazeVector != Vector3.zero)
-        if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > -0.2f)
+        if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > -0.25f)
         {
-//            print("GazeVectoringPermitted = true; " + Time.time);
-            GazeVectoringPermitted = true;
-            currentGVPermission = true;
-            RunSpeedPermitted = true;
+            currentGazeVsInertiaOk = true;
         }
         else
         {
-//            print("GazeVectoringPermitted = false; " + Time.time);
-            GazeVectoringPermitted = false;
-            currentGVPermission = false;
-            RunSpeedPermitted = false;
+            currentGazeVsInertiaOk = false;
         }
         //---------------------------------------------------------------
         //if it goes from GazeVectoringPermitted = true to false;
         //then Locomotion should be shut off, and not start moving again 
-        if (currentGVPermission == false && previousGVPermission == true)
+        if (currentGazeVsInertiaOk == false && previousGazeVsInertiaOk == true)
         {
-            Debug.Log("currentGVPermission == false: "+ Time.time);
+            Debug.Log("currentGazeVsInertiaOk == false: "+ Time.time);
             StartCoroutine("Decceleration");
         }
 
-        previousGVPermission = currentGVPermission;
+        previousGazeVsInertiaOk = currentGazeVsInertiaOk;
 
     }
 
