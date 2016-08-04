@@ -48,11 +48,11 @@ there is a strange stop and go, when changing acceleration  direciton - fixed
     so it starts decceleration 
 
 //have to account for multiple direction changes, not just from 1 to 2 
-    use HmdInertiaVec_Current ?
+    use InertiaVector_Current ?
 
 private void GazeVsInertiaCheck()
-//cannot do HmdInertiaVec_1 and 2 at same time, unless there is a separate condition to check 
-       //&& HmdInertiaVec_1.normalized != Vector3.zero
+//cannot do InertiaVector_1 and 2 at same time, unless there is a separate condition to check 
+       //&& InertiaVector_1.normalized != Vector3.zero
 
 ---------------------------------------------------------------
 2016-07-13 Wed 23:51
@@ -133,8 +133,10 @@ using Valve.VR; //
 
 public class NeotonianLocomotion : MonoBehaviour
 {
-    public SteamVR_TrackedObject trackedGun;
-    private List<SteamVR_TrackedObject> trackedControllers;
+    public SteamVR_TrackedObject Wand_R;
+    public SteamVR_TrackedObject Wand_L;
+
+    private List<SteamVR_TrackedObject> trackedController_List;
     private SteamVR_Controller.Device Wand1; //added
 
     private VRTK_PlayerPresence playerPresence;
@@ -147,6 +149,7 @@ public class NeotonianLocomotion : MonoBehaviour
     //        private float RunSpeed = 0f;
     //    private float strafeSpeed = 0f;
     //---------------------------------------------------------------
+    public Transform InertiaTracker_Transform;
     private Transform Hmd_Transform;
     private Rigidbody Hmd_Rb;
     private Rigidbody Torso_Rb;
@@ -155,13 +158,13 @@ public class NeotonianLocomotion : MonoBehaviour
     private Transform BullsEyeTransform;
     private Transform PlayAreaTransform;
 
-    private Vector3 HmdXYZPos_t1;
-    private Vector3 HmdXYZPos_t2;
-    private Vector3 HmdInertiaVec_1;
-    private Vector3 HmdInertiaVec_2;
-    private Vector3 HmdInertiaVec_Current;
+    private Vector3 InertiaTrackerXYZPos_t1;
+    private Vector3 InertiaTrackerXYZPos_t2;
+    private Vector3 InertiaVector_1;
+    private Vector3 InertiaVector_2;
+    private Vector3 InertiaVector_Current;
 
-    private float HmdYPos;
+    private float InertiaTrackerYPos;
 
     private Vector3 TorsoPos_t1;
     private Vector3 TorsoPos_t2;
@@ -189,11 +192,12 @@ public class NeotonianLocomotion : MonoBehaviour
 
     private void Start()
     {
-        trackedControllers = new List<SteamVR_TrackedObject>();
+        trackedController_List = new List<SteamVR_TrackedObject>();
         SteamVR_Utils.Event.Listen("device_connected", OnDeviceConnected);
 
         Hmd_Transform = DeviceFinder.HeadsetTransform();
         Hmd_Rb = Hmd_Transform.GetComponent<Rigidbody>();
+
 
         Torso_Rb = this.GetComponent<Rigidbody>();
         Torso_Rb.useGravity = false;
@@ -206,7 +210,7 @@ public class NeotonianLocomotion : MonoBehaviour
 
         //---------------------------------------------------------------
         PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
-         //        transform.SetParent(PlayArea);
+        //        transform.SetParent(PlayArea);
         //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
 
         GazeHudCircle = this.transform.FindChild("GazeHudCircle").gameObject as GameObject;
@@ -239,12 +243,11 @@ public class NeotonianLocomotion : MonoBehaviour
 
     private void FixedUpdate()
     {
-        ShowGazeCenter();
-        ShowGazeHud("ON");
-        
+        //        ShowGazeHud("ON");
+
         //        Debug.DrawRay(Hmd_Transform.position, ray.origin, Color.green);
         Debug.DrawRay(Hmd_Transform.position, ReverseRayOrigin, Color.green);
-//        Debug.DrawRay(ReverseRayOrigin, Hmd_Transform.position, Color.green);
+        //        Debug.DrawRay(ReverseRayOrigin, Hmd_Transform.position, Color.green);
 
         AccelControl();
         VelocityLimiter();
@@ -254,16 +257,21 @@ public class NeotonianLocomotion : MonoBehaviour
         {
             GazeVsInertiaCheck();
             GazeVectoringPermissionCheck();
-//            FOVRestriction("ON");
             break;
         }
 
-    }
+        while (GazeMaintained_t1 == true || GazeMaintained_t2 == true)
+        {
+            ShowGazeCenter();
+            break;
+        }
+
+    }       
     //---------------------------------------------------------------
     void RotatePlayArea()
     {
 
-        var Wand1 = SteamVR_Controller.Input((int)trackedGun.index);
+        var Wand1 = SteamVR_Controller.Input((int)Wand_R.index);
 
         while (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.ApplicationMenu))
         {
@@ -281,40 +289,44 @@ public class NeotonianLocomotion : MonoBehaviour
     //---------------------------------------------------------------
     void AccelControl()
     {
+        InertiaTracker_Transform = Hmd_Transform;
+
         //it does have to be here to worok 
-        var Wand1 = SteamVR_Controller.Input((int)trackedGun.index);
+        var Wand1 = SteamVR_Controller.Input((int)Wand_R.index);
+        var Wand2 = SteamVR_Controller.Input((int)Wand_L.index);
+
+        //Vector3 Wand2Pos = Wand2.transform.pos;
+
 
         if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad))
         {
             //                            Debug.Log("GetPressDown");
 
-            HmdXYZPos_t1 = Hmd_Transform.localPosition;
-            //                Debug.Log("HmdXYZPos_t1.x:" + HmdXYZPos_t1.x);
+            InertiaTrackerXYZPos_t1 = InertiaTracker_Transform.localPosition;
+            //                Debug.Log("InertiaTrackerXYZPos_t1.x:" + InertiaTrackerXYZPos_t1.x);
             SamplingVelocity = true;
-            HmdInertiaVec_1 = Vector3.zero; //ok as initial condittion?
-            HmdInertiaVec_2 = Vector3.zero; //
-                                            //                HmdInertiaVec_Current = Vector3.zero;
-
+            InertiaVector_1 = Vector3.zero; //initial condittion
+            InertiaVector_2 = Vector3.zero; //
         }
 
 
         if (Wand1.GetPressUp(SteamVR_Controller.ButtonMask.Touchpad))
         {
             //                            Debug.Log("GetPressUp");
-            HmdXYZPos_t2 = Hmd_Transform.localPosition;
+            InertiaTrackerXYZPos_t2 = InertiaTracker_Transform.localPosition;
             SamplingVelocity = false;
 
             if (DoingLocomotion == false)
             {
-                HmdInertiaVec_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
-                //                    Debug.Log("HmdInertiaVec_1. X: " + HmdInertiaVec_1.x);
-                //                 Debug.Log("HmdInertiaVec_1. Y: " + HmdInertiaVec_1.y);            
+                InertiaVector_1 = InertiaTrackerXYZPos_t2 - InertiaTrackerXYZPos_t1;
+                //                    Debug.Log("InertiaVector_1. X: " + InertiaVector_1.x);
+                //                 Debug.Log("InertiaVector_1. Y: " + InertiaVector_1.y);            
             }
             else if (DoingLocomotion == true)
             {
-                HmdInertiaVec_2 = HmdXYZPos_t2 - HmdXYZPos_t1;
-                //                    Debug.Log("HmdInertiaVec_2. X: " + HmdInertiaVec_2.x);
-                //                Debug.Log("HmdInertiaVec_2. Z: " + HmdInertiaVec_2.z);
+                InertiaVector_2 = InertiaTrackerXYZPos_t2 - InertiaTrackerXYZPos_t1;
+                //                    Debug.Log("InertiaVector_2. X: " + InertiaVector_2.x);
+                //                Debug.Log("InertiaVector_2. Z: " + InertiaVector_2.z);
             }
 
             HorizontalVectorCheck();
@@ -338,14 +350,14 @@ public class NeotonianLocomotion : MonoBehaviour
         if (DoingLocomotion == true)
         {
             //stop if reverse inertia  - but magnitude should be a factor too?
-            if (Vector3.Dot(HmdInertiaVec_1.normalized, HmdInertiaVec_2.normalized) < -0.70f)
+            if (Vector3.Dot(InertiaVector_1.normalized, InertiaVector_2.normalized) < -0.70f)
             {
                 Debug.Log("Reverse inertia");
                 //                    DoingLocomotion = false;
 //                SamplingVelocity = false;
                 Torso_Rb.useGravity = false;
-                HmdInertiaVec_1 = Vector3.zero;
-                HmdInertiaVec_2 = Vector3.zero;
+                InertiaVector_1 = Vector3.zero;
+                InertiaVector_2 = Vector3.zero;
 
                 StopCoroutine("Acceleration");//
                 StartCoroutine("Decceleration");
@@ -355,17 +367,17 @@ public class NeotonianLocomotion : MonoBehaviour
 
             // stop Locomotion if no v on second click - have to allow some margin, esp for when things get intense 
             //0.01f maybe too low, 0.02f still low? 
-            if ((Mathf.Abs(HmdInertiaVec_2.z) < 0.03f) && (Mathf.Abs(HmdInertiaVec_2.x) < 0.03f))
+            if ((Mathf.Abs(InertiaVector_2.z) < 0.03f) && (Mathf.Abs(InertiaVector_2.x) < 0.03f))
             {
                 Debug.Log("zero inertia");
                 //                    DoingLocomotion = false;
 //                SamplingVelocity = false;
                 Torso_Rb.useGravity = false;
-                HmdInertiaVec_1 = Vector3.zero;
-                HmdInertiaVec_2 = Vector3.zero;
+                InertiaVector_1 = Vector3.zero;
+                InertiaVector_2 = Vector3.zero;
 
-                //                HmdInertiaVec_2 = Vector3.zero;
-                //                        HmdInertiaVec_2 = GazeVector;
+                //                InertiaVector_2 = Vector3.zero;
+                //                        InertiaVector_2 = GazeVector;
 
                 StopCoroutine("Acceleration");//
                 StartCoroutine("Decceleration");
@@ -378,12 +390,12 @@ public class NeotonianLocomotion : MonoBehaviour
         {
             //first zx acceleration
             //0.005f is too high, 0.0025f still high 
-            if ((Mathf.Abs(HmdInertiaVec_1.z) > 0.0015f) || (Mathf.Abs(HmdInertiaVec_1.x) > 0.0015f))
+            if ((Mathf.Abs(InertiaVector_1.z) > 0.0015f) || (Mathf.Abs(InertiaVector_1.x) > 0.0015f))
             {
                 Debug.Log("first inertia");
   //              SamplingVelocity = false;
                 Torso_Rb.useGravity = false;
-                HmdInertiaVec_1.y = 0f;
+                InertiaVector_1.y = 0f;
 
                 StopCoroutine("Decceleration");//
                 StartCoroutine("Acceleration");
@@ -393,15 +405,15 @@ public class NeotonianLocomotion : MonoBehaviour
 
         //check new acceleration while moving - needs to have higher threshold, to avoid unwanted motion 
         //0.005 maybe too low 
-        if ((Mathf.Abs(HmdInertiaVec_2.z) > 0.0075f) || (Mathf.Abs(HmdInertiaVec_2.x) > 0.0075f))
+        if ((Mathf.Abs(InertiaVector_2.z) > 0.0075f) || (Mathf.Abs(InertiaVector_2.x) > 0.0075f))
         {
             //                            Debug.Log("secondainertia");
             //                DoingLocomotion = true;
 //            SamplingVelocity = false;
             Torso_Rb.useGravity = false;
 
-            HmdInertiaVec_1 = Vector3.zero;
-            HmdInertiaVec_2.y = 0f;
+            InertiaVector_1 = Vector3.zero;
+            InertiaVector_2.y = 0f;
 
             StopCoroutine("Decceleration");//
             StartCoroutine("Acceleration");
@@ -432,26 +444,28 @@ public class NeotonianLocomotion : MonoBehaviour
         if (DoingLocomotion == false)
         {
             Debug.Log("Acceleration #1");
-            Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVec_1, HmdInertiaVec_1 * accelBoost1, 20f * Time.deltaTime);
+            Torso_Rb.velocity = Vector3.Lerp(InertiaVector_1, InertiaVector_1 * accelBoost1, 20f * Time.deltaTime);
 
-            //                HmdInertiaVec_Current = HmdInertiaVec_1;
+            //                InertiaVector_Current = InertiaVector_1;
             DoingLocomotion = true;
             FOVRestriction("ON");
+            AnimateBullseye("UP");
 
             yield return null;
         }
         else if (DoingLocomotion == true)
         {
             Debug.Log("Acceleration #2");
-            //maybe NG            Torso_Rb.velocity = HmdInertiaVec_1 + (HmdInertiaVec_2 * 10f)  ; //can get too tricky?
+            //maybe NG            Torso_Rb.velocity = InertiaVector_1 + (InertiaVector_2 * 10f)  ; //can get too tricky?
 
             //have to account for multiple direction changes, not just from 1 to 2 
-            //                Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVec_Current, HmdInertiaVec_2 * accelBoost1, accelSmooth * Time.deltaTime);
-            Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, HmdInertiaVec_2 * accelBoost1, 20f * Time.deltaTime);
+            //                Torso_Rb.velocity = Vector3.Lerp(InertiaVector_Current, InertiaVector_2 * accelBoost1, accelSmooth * Time.deltaTime);
+            Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, InertiaVector_2 * accelBoost1, 20f * Time.deltaTime);
 
-            //                HmdInertiaVec_Current = HmdInertiaVec_2;
+            //                InertiaVector_Current = InertiaVector_2;
             DoingLocomotion = true;
             FOVRestriction("ON");
+            AnimateBullseye("UP");
             yield return null;
         }
 
@@ -502,7 +516,7 @@ public class NeotonianLocomotion : MonoBehaviour
         {
             if (TouchpadAccel == false)
             {
-                if (DoingLocomotion == true && Torso_Rb.velocity.magnitude > maxWalkSpeed)
+                if (DoingLocomotion == true && Torso_Rb.velocity.magnitude >= maxWalkSpeed)
                 {
                     //            Debug.Log("VelocityLimiter");
                     Torso_Rb.velocity = Vector3.ClampMagnitude(Torso_Rb.velocity, maxWalkSpeed);
@@ -517,8 +531,8 @@ public class NeotonianLocomotion : MonoBehaviour
             }
 
 
-            if (DoingLocomotion == true && Torso_Rb.velocity.magnitude > 0.2f)
-                AnimateBullseye("UP");
+//            if (DoingLocomotion == true && Torso_Rb.velocity.magnitude > 0.2f)
+//                AnimateBullseye("UP");
 
     }
 
@@ -536,6 +550,7 @@ public class NeotonianLocomotion : MonoBehaviour
                 //            DoingJump = false;
                 //            Torso_Rb.useGravity = true;
                 GazeVectoringPermitted = false;
+                ShowGazeHud("OFF");
                 FOVRestriction("OFF");
                 AnimateBullseye("DOWN");
                 yield return null;
@@ -559,7 +574,7 @@ public class NeotonianLocomotion : MonoBehaviour
     //---------------------------------------------------------------
     void VerticalVelocityCheck()
     {
-        if (Hmd_Transform.localPosition.y <= HmdYPos)
+        if (InertiaTracker_Transform.localPosition.y <= InertiaTrackerYPos)
         {
             DoingJump = false;
             Torso_Rb.useGravity = false;
@@ -574,10 +589,10 @@ public class NeotonianLocomotion : MonoBehaviour
 
         if (DoingJump == false)
         {
-            HmdYPos = Hmd_Transform.localPosition.y;
+            InertiaTrackerYPos = InertiaTracker_Transform.localPosition.y;
 
             //have to detect jump first, otherwise y=0
-            if (HmdInertiaVec_1.y > +0.05f)
+            if (InertiaVector_1.y > +0.05f)
             {
                 Debug.Log("Jump detected");
                 SamplingVelocity = false;
@@ -589,7 +604,7 @@ public class NeotonianLocomotion : MonoBehaviour
                 //                    Debug.Log("Jump NOT detected");
                 SamplingVelocity = false;
                 DoingJump = false;
-                HmdInertiaVec_1.y = 0f;
+                InertiaVector_1.y = 0f;
             }
         }
     }
@@ -684,14 +699,15 @@ public class NeotonianLocomotion : MonoBehaviour
 //                  Debug.Log("IEnumerator GazeMaintained_t1 = true: " + Time.time);
                     GazeMaintained_t1 = true;
                     ShowGazeHud("ON");
-                }
+                 }
                 else
                 {
                     GazeMaintained_t1 = false;
+                    ShowGazeHud("OFF");
                     yield return null;
                 }
 
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(2.0f);
 
                 if (GazeMaintained_t1 == true)
                 {
@@ -707,7 +723,7 @@ public class NeotonianLocomotion : MonoBehaviour
                         break;
                     }
 
-                ShowGazeHud("OFF");
+                //ShowGazeHud("OFF");
                 yield return null;
 
                 }//            if (GazeMaintained_t1 == true)
@@ -758,7 +774,6 @@ public class NeotonianLocomotion : MonoBehaviour
 
         //need to make it appear only just above the ground 
     //make rayhit return all collides ? but layer thing 
-    //does this need tobe a coroutine?
 //    IEnumerator ShowGazeHud(string ONOFF)
     void ShowGazeHud(string ONOFF)
     {
@@ -769,7 +784,6 @@ public class NeotonianLocomotion : MonoBehaviour
 
        //Raycasts will not detect Colliders for which the Raycast origin is inside the Collider. so have to make reverse ray
         Ray ray = new Ray(Hmd_Transform.position, Hmd_Transform.forward);
-//        ray.origin = ray.GetPoint(100);
         ReverseRayOrigin = ray.GetPoint(100);
 //        ReverseRayOrigin.y = Hmd_Transform.position.y;
 //NG        ReverseRayOrigin = new Vector3(ReverseRayOrigin.x, Hmd_Transform.position.y, ReverseRayOrigin.z);
@@ -777,7 +791,7 @@ public class NeotonianLocomotion : MonoBehaviour
         while (Physics.Raycast(ReverseRayOrigin, -Hmd_Transform.forward, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
         {
             print("ShowGazeHud gazeRayHit; " + gazeRayHit.collider);
-            print("Hmd_Transform.rotation.y; " + Hmd_Transform.rotation.y);
+//            print("Hmd_Transform.rotation.y; " + Hmd_Transform.rotation.y);
 
             Quaternion GazeHudRotation;
 //NG            GazeHudRotation = new Quaternion(Hmd_Transform.rotation.x, Hmd_Transform.rotation.y, Hmd_Transform.rotation.z, 0f);
@@ -800,7 +814,7 @@ public class NeotonianLocomotion : MonoBehaviour
 
 
                 GazeHudCircleClone.SetActive(true);
-                Destroy(GazeHudCircleClone, 0.1f);
+                Destroy(GazeHudCircleClone, 2f);
             }
 
             break;
@@ -809,7 +823,7 @@ public class NeotonianLocomotion : MonoBehaviour
         if (ONOFF == "OFF")
         {
             print ("Destroy hud ");
-//            Destroy(GazeHudCircleClone);
+            GameObject.Destroy(GazeHudCircleClone, 0f);
         }
 
 //        yield return null;
@@ -824,9 +838,9 @@ public class NeotonianLocomotion : MonoBehaviour
                 Debug.Log("Doing GazeVectoring ");
                 //NG                Torso_Rb.AddForce(GazeVector * 1000f, ForceMode.VelocityChange);//
                 //            Torso_Rb.AddForce(GazeVector * gazeBoost, ForceMode.Impulse);//seems to work 
-                //           Torso_Rb.velocity = (GazeVector * 100f) + HmdInertiaVec_1; //try this method
+                //           Torso_Rb.velocity = (GazeVector * 100f) + InertiaVector_1; //try this method
 
-                //            Torso_Rb.velocity = Vector3.Slerp(HmdInertiaVec_1, GazeVector * 100f, 1f * Time.deltaTime);
+                //            Torso_Rb.velocity = Vector3.Slerp(InertiaVector_1, GazeVector * 100f, 1f * Time.deltaTime);
                 Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, GazeVector * 75f, 20f * Time.deltaTime);
 
             }
@@ -864,8 +878,8 @@ public class NeotonianLocomotion : MonoBehaviour
     private void GazeVsInertiaCheck()
     {
         //        print("GazeVsInertiaCheck: " + Time.time);
-        //cannot do HmdInertiaVec_1 and 2 at same time, unless there is a separate condition to check ?
-        //&& HmdInertiaVec_1.normalized != Vector3.zero
+        //cannot do InertiaVector_1 and 2 at same time, unless there is a separate condition to check ?
+        //&& InertiaVector_1.normalized != Vector3.zero
         //if one of the vectors is zero - dot is zero issue !
 
         //Hmd_Transform.forward has y vector included so NG ? but GazeVector has to get fixupdated to use 
@@ -924,7 +938,7 @@ public class NeotonianLocomotion : MonoBehaviour
     void RunSpeedControl()
         {
             //it does have to be here to worok 
-            var Wand1 = SteamVR_Controller.Input((int)trackedGun.index);
+            var Wand1 = SteamVR_Controller.Input((int)Wand_R.index);
 
 //            if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad))
             if(Wand1.GetPressDown(SteamVR_Controller.ButtonMask.Axis0))
@@ -949,7 +963,7 @@ public class NeotonianLocomotion : MonoBehaviour
 
         if (DoingLocomotion == true && RunSpeedPermitted == true)
         {
-            //            Torso_Rb.velocity = Vector3.Lerp(HmdInertiaVec_1, GazeVector * 100f, accelSmooth * Time.deltaTime);
+            //            Torso_Rb.velocity = Vector3.Lerp(InertiaVector_1, GazeVector * 100f, accelSmooth * Time.deltaTime);
             //            Torso_Rb.AddForce(Torso_Rb.velocity * SpeedDelta, ForceMode.Impulse);//
             Torso_Rb.AddForce(Torso_Rb.velocity.normalized * SpeedDelta * 200f, ForceMode.Impulse);//
         }
@@ -1051,7 +1065,7 @@ public class NeotonianLocomotion : MonoBehaviour
 
                 if (controllerEvent)
                 {
-                    if (trackedControllerConnectedState && !trackedControllers.Contains(trackedController))
+                    if (trackedControllerConnectedState && !trackedController_List.Contains(trackedController))
                     {
                         controllerEvent.TouchpadAxisChanged += new ControllerClickedEventHandler(DoTouchpadAxisChanged);
                         controllerEvent.TouchpadUntouched += new ControllerClickedEventHandler(DoTouchpadUntouched);
@@ -1062,8 +1076,8 @@ public class NeotonianLocomotion : MonoBehaviour
                         //                 controllerEvent.ApplicationMenuClicked += new ControllerClickedEventHandler(DoApplicationMenuClicked);
                         //                controllerEvent.AplicationMenuUnclicked += new ControllerClickedEventHandler(DoApplicationMenuUnClicked);
 
-                        trackedControllers.Add(trackedController);
-                        //                    Debug.Log("trackedControllers Locomotion : " + trackedControllers.Count);
+                        trackedController_List.Add(trackedController);
+                        //                    Debug.Log("trackedController_List Locomotion : " + trackedController_List.Count);
 
                     }
                 }
@@ -1081,7 +1095,7 @@ public class NeotonianLocomotion : MonoBehaviour
 
                 if (DoingLocomotion == false)
                 {
-                    HmdXYZPos_t1 = Hmd_Transform.position;
+                    InertiaTrackerXYZPos_t1 = Hmd_Transform.position;
                     SamplingVelocity = true;
                     DoingLocomotion = true;
 
@@ -1093,19 +1107,19 @@ public class NeotonianLocomotion : MonoBehaviour
                     DoingLocomotion = false;
 
                     //---------------------------------------------------------------
-                    //            Decelerate_Velocity(ref HmdInertiaVec_1);
+                    //            Decelerate_Velocity(ref InertiaVector_1);
                     //            Decelerate_Velocity(Torso_Rb.velocity);
 
                     //            Torso_Rb.velocity = Vector3.Lerp(Vector3.zero, Torso_Rb.velocity, 0.5f);
-                    //            HmdInertiaVec_1 = Vector3.zero;
+                    //            InertiaVector_1 = Vector3.zero;
 
                     StartCoroutine("Decceleration");
 
                     //StoppedTimer = 0f;
                     //NG            Torso_Rb.AddForce(Vector3.zero);//no effect 
-                    //            Torso_Rb.AddForce(-HmdInertiaVec_1);
+                    //            Torso_Rb.AddForce(-InertiaVector_1);
                     //            Torso_Rb.velocity = Vector3.zero;
-                    //Torso_Rb.velocity = HmdInertiaVec_1;
+                    //Torso_Rb.velocity = InertiaVector_1;
 
                 }
             }
@@ -1117,10 +1131,10 @@ public class NeotonianLocomotion : MonoBehaviour
 
                 if (DoingLocomotion = true && SamplingVelocity == true)
                 {
-                    HmdXYZPos_t2 = Hmd_Transform.position;
-                    //calc HmdInertiaVec_1 
-                    HmdInertiaVec_1 = HmdXYZPos_t2 - HmdXYZPos_t1;
-                    HmdInertiaVec_1.y = 0f;
+                    InertiaTrackerXYZPos_t2 = Hmd_Transform.position;
+                    //calc InertiaVector_1 
+                    InertiaVector_1 = InertiaTrackerXYZPos_t2 - InertiaTrackerXYZPos_t1;
+                    InertiaVector_1.y = 0f;
 
                     NewtonianAcceleration();
                 }
@@ -1132,11 +1146,11 @@ public class NeotonianLocomotion : MonoBehaviour
         private void NewtonianAcceleration()
         {
 
-            if (HmdInertiaVec_1 != Vector3.zero && GazeMaintained_t2 == false)
+            if (InertiaVector_1 != Vector3.zero && GazeMaintained_t2 == false)
             {
                 //normalized vs not 
-                //            Torso_Rb.AddForce(HmdInertiaVec_1.normalized * accelBoost1, ForceMode.Impulse);//
-                //           Torso_Rb.AddForce(HmdInertiaVec_1.normalized * accelBoost1);//seems more controllable //27500f
+                //            Torso_Rb.AddForce(InertiaVector_1.normalized * accelBoost1, ForceMode.Impulse);//
+                //           Torso_Rb.AddForce(InertiaVector_1.normalized * accelBoost1);//seems more controllable //27500f
 
                 //            Torso_Rb.AddForce(Hmd_Rb.transform.forward * accelBoost1, ForceMode.Impulse);//
                 //            Torso_Rb.AddForce(Hmd_Rb.transform.forward * accelBoost1);//
