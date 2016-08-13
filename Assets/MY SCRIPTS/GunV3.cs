@@ -70,7 +70,7 @@ public class GunV3 : MonoBehaviour{
 
     float bulletSpeed = 20000f;
     float bulletLife = 1f;
-    float bulletHoleLife = 30f;
+    float bulletHoleLife = 20f;
     //---------------------------------------------------------------
     float maxDist = 1000000f;
     float floatInFrontOfWall = 0.00001f;
@@ -109,13 +109,14 @@ public class GunV3 : MonoBehaviour{
 
         if (device.GetTouchDown(SteamVR_Controller.ButtonMask.Trigger))
         {
-//            FireBullet();
-           StartCoroutine("FireBullet");
+            FireBullet();
+//           StartCoroutine("FireBullet");
         }
     }
 
 
-    IEnumerator FireBullet()
+    void FireBullet()
+//    IEnumerator FireBullet()
     {
         Debug.Log("FireBullet GunV3");
 
@@ -137,10 +138,12 @@ public class GunV3 : MonoBehaviour{
         //bulletholes 
         var fwd = transform.TransformDirection(Vector3.up);
 
+        int layerMask = 1 << 8; ;
+
         RaycastHit hit;
         //        Debug.DrawRay(transform.position, fwd * 100, Color.green, 5, true);
 
-        if (Physics.Raycast(transform.position, transform.up, out hit, maxDist))
+        if (Physics.Raycast(transform.position, transform.up, out hit, maxDist, layerMask, QueryTriggerInteraction.Ignore))
         {
             Debug.Log("Hit");
 
@@ -153,66 +156,68 @@ public class GunV3 : MonoBehaviour{
             //play ping
             if (hit.transform.gameObject.layer == MetalTarget)
             {
-                yield return new WaitForSeconds(0.05f);    
+                //yield return new WaitForSeconds(0.05f);    
                 AudioSource.PlayClipAtPoint(bulletHitSound, bulletHoleClone.transform.position);
             }
 
             Destroy(bulletHoleClone, bulletHoleLife);
-            yield return null;
+//            yield return null;
          }
 
     }//    IEnumerator FireBullet()
 
-    //---------------------------------------------------------------
-    /*
-        void FireBulletV1()    {
+}
 
-            Debug.Log("FireBullet GunV3");
+//---------------------------------------------------------------
+/*
+    void FireBulletV1()    {
 
-            //play bang
-            AudioSource.PlayClipAtPoint(gunShot, transform.position);
-            //---------------------------------------------------------------
-            //bulletholes 
-            var fwd = transform.TransformDirection(Vector3.up);
+        Debug.Log("FireBullet GunV3");
 
-            RaycastHit hit;
-    //        Debug.DrawRay(transform.position, fwd * 100, Color.green, 5, true);
+        //play bang
+        AudioSource.PlayClipAtPoint(gunShot, transform.position);
+        //---------------------------------------------------------------
+        //bulletholes 
+        var fwd = transform.TransformDirection(Vector3.up);
 
-            if (Physics.Raycast(transform.position, transform.up, out hit, maxDist))
-            {
-                    Debug.Log("Hit");
+        RaycastHit hit;
+//        Debug.DrawRay(transform.position, fwd * 100, Color.green, 5, true);
 
-                GameObject bulletHoleClone = Instantiate(bulletHole, hit.point + (hit.normal * floatInFrontOfWall), Quaternion.FromToRotation(Vector3.up, hit.normal)) as GameObject;
+        if (Physics.Raycast(transform.position, transform.up, out hit, maxDist))
+        {
+                Debug.Log("Hit");
 
-                bulletHoleClone.SetActive(true);
+            GameObject bulletHoleClone = Instantiate(bulletHole, hit.point + (hit.normal * floatInFrontOfWall), Quaternion.FromToRotation(Vector3.up, hit.normal)) as GameObject;
 
-                var MetalTarget = LayerMask.NameToLayer("Metal Target");
+            bulletHoleClone.SetActive(true);
 
-                //play ping
-                //NG            if (hit.transform.tag == "Targets") { 
-                if (hit.transform.gameObject.layer == MetalTarget) { 
-                    AudioSource.PlayClipAtPoint(bulletHitSound, bulletHoleClone.transform.position);
-                }
+            var MetalTarget = LayerMask.NameToLayer("Metal Target");
 
-                Destroy(bulletHoleClone, bulletHoleLife);
+            //play ping
+            //NG            if (hit.transform.tag == "Targets") { 
+            if (hit.transform.gameObject.layer == MetalTarget) { 
+                AudioSource.PlayClipAtPoint(bulletHitSound, bulletHoleClone.transform.position);
             }
 
-
-            //---------------------------------------------------------------
-            GameObject bulletClone = Instantiate(bullet, bullet.transform.position, bullet.transform.rotation) as GameObject;
-    //        GameObject bulletClone = Instantiate(bullet, bullet.transform.position, Quaternion.identity) as GameObject;
-
-            bulletClone.SetActive(true);
-    //        bulletClone.transform.SetParent(this.gameObject.transform);//added
-
-            Rigidbody rb = bulletClone.GetComponent<Rigidbody>();
-    //        rb.AddForce(-bullet.transform.forward * bulletSpeed);
-            rb.AddForce(bullet.transform.up * bulletSpeed); //had to change due to prefab orientation
-
-            Destroy(bulletClone, bulletLife);
-
+            Destroy(bulletHoleClone, bulletHoleLife);
         }
-      */
 
-}
+
+        //---------------------------------------------------------------
+        GameObject bulletClone = Instantiate(bullet, bullet.transform.position, bullet.transform.rotation) as GameObject;
+//        GameObject bulletClone = Instantiate(bullet, bullet.transform.position, Quaternion.identity) as GameObject;
+
+        bulletClone.SetActive(true);
+//        bulletClone.transform.SetParent(this.gameObject.transform);//added
+
+        Rigidbody rb = bulletClone.GetComponent<Rigidbody>();
+//        rb.AddForce(-bullet.transform.forward * bulletSpeed);
+        rb.AddForce(bullet.transform.up * bulletSpeed); //had to change due to prefab orientation
+
+        Destroy(bulletClone, bulletLife);
+
+    }
+  */
+
+
 
