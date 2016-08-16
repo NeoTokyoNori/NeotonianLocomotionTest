@@ -1,7 +1,12 @@
 ﻿/*
+2016-08-16 Tue 18:24
+planning to add double click for speed 
+
+2016-08-16 Tue 02:09
+2016-08-14 Sun 16:14
+
 2016-08-04 Thu
 had to fucking change vrtk  code, due to vrtk updates 
-
 
 2016-07-17 Sun 
 gazevectoring countdown indicator needed 
@@ -135,216 +140,232 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
     using Valve.VR; //
     using VRTK;
 
-    public class NeotonianLocomotion : MonoBehaviour
+public class NeotonianLocomotion : MonoBehaviour
+{
+    public SteamVR_TrackedObject Wand_R;
+    //        public SteamVR_TrackedObject Wand_L;
+    //        private SteamVR_Controller.Device Wand1; //added
+
+
+    [SerializeField]
+    private bool leftController = true;
+    public bool LeftController
     {
-        public SteamVR_TrackedObject Wand_R;
-//        public SteamVR_TrackedObject Wand_L;
-//        private SteamVR_Controller.Device Wand1; //added
-
-
-        [SerializeField]
-        private bool leftController = true;
-        public bool LeftController
+        get { return leftController; }
+        set
         {
-            get { return leftController; }
-            set
-            {
-                leftController = value;
-                SetControllerListeners(controllerManager.left);
-            }
+            leftController = value;
+            SetControllerListeners(controllerManager.left);
         }
-
-        [SerializeField]
-        private bool rightController = true;
-        public bool RightController
-        {
-            get { return rightController; }
-            set
-            {
-                rightController = value;
-                SetControllerListeners(controllerManager.right);
-            }
-        }
-
-        private SteamVR_ControllerManager controllerManager;
-
-        private bool leftSubscribed;
-        private bool rightSubscribed;
-
-        private ControllerInteractionEventHandler touchpadAxisChanged;
-        private ControllerInteractionEventHandler touchpadUntouched;
-
-        private VRTK_PlayerPresence_Mod playerPresence;
-                                                 
-        //---------------------------------------------------------------
-        public float maxRunSpeed = 10.0f;
-        public float maxWalkSpeed = 4.0f;
-        public float maxSlowSpeed = 1.0f;
-
-        private Vector2 touchAxis;
-        //        private float RunSpeed = 0f;
-        //    private float strafeSpeed = 0f;
-        //---------------------------------------------------------------
-        [HideInInspector]
-        public Transform InertiaTracker_Transform;
-        private Transform Hmd_Transform;
-        private Rigidbody Hmd_Rb;
-        private Rigidbody Torso_Rb;
-        private Collider Torso_Col;
-
-        private Transform BullsEyeTransform;
-        private Transform PlayAreaTransform;
-
-        private Vector3 InertiaTrackerXYZPos_t1;
-        private Vector3 InertiaTrackerXYZPos_t2;
-        private Vector3 InertiaVector_1;
-        private Vector3 InertiaVector_2;
-        private Vector3 InertiaVector_Current;
-
-        private float InertiaTrackerYPos;
-
-        private Vector3 TorsoPos_t1;
-        private Vector3 TorsoPos_t2;
-        private Vector3 MeasuredVelocity;
-
-        private bool DoingLocomotion = false;
-        private bool SamplingVelocity = false;
-        private bool TouchpadAccel = false;
-        private bool DoingJump = false;
-
-        public Animator Animator;
-
-        private UI_Interactions _UI_Interactions;
-    //---------------------------------------------------------------
-        public void UI_Options() {
-
-        _UI_Interactions = new UI_Interactions();
-//        iUI_Interactions.Toggle.
     }
 
-        //---------------------------------------------------------------
-        private void Awake()
+    [SerializeField]
+    private bool rightController = true;
+    public bool RightController
+    {
+        get { return rightController; }
+        set
         {
-            if (this.GetComponent<VRTK_PlayerPresence_Mod>())
-            {
-                playerPresence = this.GetComponent<VRTK_PlayerPresence_Mod>();
-            }
-            else
-            {
-                Debug.LogError("requires the VRTK_PlayerPresence script to be attached to the [CameraRig]");
-            }
-
-            touchpadAxisChanged = new ControllerInteractionEventHandler(DoTouchpadAxisChanged);
-            touchpadUntouched = new ControllerInteractionEventHandler(DoTouchpadTouchEnd);
-            controllerManager = GetComponent<SteamVR_ControllerManager>();
-        }
-
-        private void Start()
-        {
-            //vrtk 
-            Utilities.SetPlayerObject(gameObject, VRTK_PlayerObject.ObjectTypes.CameraRig);
-
-            var controllerManager = FindObjectOfType<SteamVR_ControllerManager>();
-
-            SetControllerListeners(controllerManager.left);
+            rightController = value;
             SetControllerListeners(controllerManager.right);
-
-//---------------------------------------------------------------
-//            SteamVR_Utils.Event.Listen("device_connected", OnDeviceConnected);
-
-            Hmd_Transform = VRTK_DeviceFinder.HeadsetTransform();
-
-            Hmd_Rb = Hmd_Transform.GetComponent<Rigidbody>();
-
-            Torso_Rb = this.GetComponent<Rigidbody>();
-            Torso_Rb.useGravity = false;
-            Torso_Col = this.GetComponent<Collider>();
-
-            //added
-            Collider Floor_Col;
-            Floor_Col = GameObject.FindWithTag("FLOOR").GetComponent<Collider>();
-            Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
-
-            //---------------------------------------------------------------
-            PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
-            //        transform.SetParent(PlayArea);
-            //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
-
-            GazeHudCircle = this.transform.FindChild("GazeHudCircle").gameObject as GameObject;
-            GazeHudCircle.SetActive(false);
-
-            GazeCenterDot = this.transform.FindChild("GazeCenterDot").gameObject as GameObject;
-            GazeCenterDot.SetActive(false);
-
-            BullsEye = this.transform.FindChild("Bullseye").gameObject as GameObject;
-            BullsEyeTransform = this.transform.FindChild("Bullseye").transform as Transform;
-
-            FOVLimiter = GetComponentInChildren<VignetteAndChromaticAberration>();
-            Animator = GetComponentInChildren<Animator>();
-
         }
+    }
 
+    private SteamVR_ControllerManager controllerManager;
 
-        private void Update()
+    private bool leftSubscribed;
+    private bool rightSubscribed;
+
+    private ControllerInteractionEventHandler touchpadAxisChanged;
+    private ControllerInteractionEventHandler touchpadUntouched;
+
+    private VRTK_PlayerPresence_Mod playerPresence;
+
+    //---------------------------------------------------------------
+    public float maxRunSpeed = 10.0f;
+    public float maxWalkSpeed = 6.0f;
+    public float maxSlowSpeed = 1.0f;
+
+    private Vector2 touchAxis;
+    //        private float RunSpeed = 0f;
+    //    private float strafeSpeed = 0f;
+    //---------------------------------------------------------------
+    [HideInInspector]
+    public Transform InertiaTracker_Transform;
+    private Transform Hmd_Transform;
+    private Rigidbody Hmd_Rb;
+    private Rigidbody Torso_Rb;
+    private Collider Torso_Col;
+
+    private Transform BullsEyeTransform;
+    private Transform PlayAreaTransform;
+
+    private Vector3 InertiaTrackerPos_t1;
+    private Vector3 InertiaTrackerPos_t2;
+    private Vector3 InertiaVector_1;
+    private Vector3 InertiaVector_2;
+    private Vector3 InertiaVector_Current;
+    private Vector3 InertiaVelocity_1;
+    private Vector3 InertiaVelocity_2;
+    private float sample_t1;
+    private float sample_t2;
+    private float sample_deltaT;
+
+    private float InertiaTrackerYPos;
+
+    private Vector3 TorsoPos_t1;
+    private Vector3 TorsoPos_t2;
+    private Vector3 MeasuredVelocity;
+
+    private bool DoingLocomotion = false;
+    private bool SamplingVelocity = false;
+    private bool TouchpadAccel = false;
+    private bool DoingJump = false;
+
+    public Animator Animator;
+
+    private UI_Interactions _UI_Interactions;
+    //---------------------------------------------------------------
+    public void UI_Options() {
+
+        _UI_Interactions = new UI_Interactions();
+        //        iUI_Interactions.Toggle.
+    }
+
+    //---------------------------------------------------------------
+    private void Awake()
+    {
+        if (this.GetComponent<VRTK_PlayerPresence_Mod>())
         {
-
-            //        print("Hmd_Transform.eulerAngles.z; " + Hmd_Transform.eulerAngles.z);
-            //        print("Hmd_Transform.eulerAngles.x; " + Hmd_Transform.eulerAngles.x);
-
-            //        Debug.Log("GazeVectoringPermitted: " + GazeVectoringPermitted);
-            //        Debug.Log("DoingLocomotion: " + DoingLocomotion);
-            //        Debug.Log("Torso_Rb.velocity.magnitude:" + Torso_Rb.velocity.magnitude);
-
-            //        RotatePlayArea();
+            playerPresence = this.GetComponent<VRTK_PlayerPresence_Mod>();
         }
-
-        private void FixedUpdate()
+        else
         {
-            //        ShowGazeHud("ON");
-
-            //        Debug.DrawRay(Hmd_Transform.position, ray.origin, Color.green);
-            Debug.DrawRay(Hmd_Transform.position, ReverseRayOrigin, Color.green);
-            //        Debug.DrawRay(ReverseRayOrigin, Hmd_Transform.position, Color.green);
-
-            AccelControl();
-            VelocityLimiter();
-            //            RunSpeedControl();
-
-            while (DoingLocomotion == true)
-            {
-                GazeVsInertiaCheck();
-                GazeVectoringPermissionCheck();
-                break;
-            }
-
-            while (GazeMaintained_t1 == true || GazeMaintained_t2 == true)
-            {
-                ShowGazeCenter();
-                break;
-            }
-
+            Debug.LogError("requires the VRTK_PlayerPresence script to be attached to the [CameraRig]");
         }
+
+        touchpadAxisChanged = new ControllerInteractionEventHandler(DoTouchpadAxisChanged);
+        touchpadUntouched = new ControllerInteractionEventHandler(DoTouchpadTouchEnd);
+        controllerManager = GetComponent<SteamVR_ControllerManager>();
+    }
+
+    private void Start()
+    {
+        //vrtk 
+        Utilities.SetPlayerObject(gameObject, VRTK_PlayerObject.ObjectTypes.CameraRig);
+
+        var controllerManager = FindObjectOfType<SteamVR_ControllerManager>();
+
+        SetControllerListeners(controllerManager.left);
+        SetControllerListeners(controllerManager.right);
+
         //---------------------------------------------------------------
-        void RotatePlayArea()
-        {
+        //            SteamVR_Utils.Event.Listen("device_connected", OnDeviceConnected);
 
+        Hmd_Transform = VRTK_DeviceFinder.HeadsetTransform();
+
+        Hmd_Rb = Hmd_Transform.GetComponent<Rigidbody>();
+
+        Torso_Rb = this.GetComponent<Rigidbody>();
+        Torso_Rb.useGravity = false;
+        Torso_Col = this.GetComponent<Collider>();
+
+        //added
+        Collider Floor_Col;
+        Floor_Col = GameObject.FindWithTag("FLOOR").GetComponent<Collider>();
+        Physics.IgnoreCollision(Torso_Col, Floor_Col, true);
+
+        //---------------------------------------------------------------
+        PlayAreaTransform = GetComponentInChildren<SteamVR_PlayArea>().transform as Transform;
+        //        transform.SetParent(PlayArea);
+        //        gameObject.GetComponentsInChildren<VignetteAndChromaticAberration>().Vignetting = 5;
+
+        GazeHudCircle = this.transform.FindChild("GazeHudCircle").gameObject as GameObject;
+        GazeHudCircle.SetActive(false);
+
+        GazeCenterDot = this.transform.FindChild("GazeCenterDot").gameObject as GameObject;
+        GazeCenterDot.SetActive(false);
+
+        BullsEye = this.transform.FindChild("Bullseye").gameObject as GameObject;
+        BullsEyeTransform = this.transform.FindChild("Bullseye").transform as Transform;
+
+        FOVLimiter = GetComponentInChildren<VignetteAndChromaticAberration>();
+        Animator = GetComponentInChildren<Animator>();
+
+        clickCount = 1;
+        currentClickTime = Time.time;
+    }
+
+
+    private void Update()
+    {
+        //        print("Hmd_Transform.eulerAngles.z; " + Hmd_Transform.eulerAngles.z);
+        //        print("Hmd_Transform.eulerAngles.x; " + Hmd_Transform.eulerAngles.x);
+
+        //        Debug.Log("GazeVectoringPermitted: " + GazeVectoringPermitted);
+        //        Debug.Log("DoingLocomotion: " + DoingLocomotion);
+        //        Debug.Log("Torso_Rb.velocity.magnitude:" + Torso_Rb.velocity.magnitude);
+    }
+
+    private void FixedUpdate()
+    {
+        //        ShowGazeHud("ON");
+
+        Debug.DrawRay(Hmd_Transform.position, ReverseRayOrigin, Color.green);
+
+        ClickCounter();
+        AccelControl();
+        VelocityLimiter();
+        //            RunSpeedControl();
+
+        while (DoingLocomotion == true)
+        {
+            GazeVsInertiaCheck();
+            GazeVectoringPermissionCheck();
+            break;
+        }
+
+        while (GazeMaintained_t1 == true || GazeMaintained_t2 == true)
+        {
+            ShowGazeCenter();
+            break;
+        }
+
+    }
+
+    //---------------------------------------------------------------
+    int clickCount;
+    float currentClickTime;
+    float previousClickTime;
+
+        //only needs to know if click is 1 or more ?
+        void ClickCounter()
+        {
             var Wand1 = SteamVR_Controller.Input((int)Wand_R.index);
 
-            while (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.ApplicationMenu))
+            if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.ApplicationMenu))
             {
-                Debug.Log("ApplicationMenuClicked");
+                currentClickTime = Time.time;
 
-                //NG        PlayAreaTransform.rotation = Hmd_Transform.rotation;
-                //        PlayAreaTransform.rotation.Set(1, 1, 1);
+                if (clickCount >= 1 && currentClickTime - previousClickTime <= 0.4f) //time between clicks 
+                {
+                    clickCount = clickCount +1;
+                }
+                else
+                {
+                    clickCount = 1;
+                }
 
-                //nothin            PlayAreaTransform.Rotate(Vector3.up, Hmd_Transform.rotation.y);
-                PlayAreaTransform.Rotate(Vector3.up, Hmd_Transform.rotation.y * Time.deltaTime);
-                break;
-            }
+//                Debug.Log("currentClickTime - previousClickTime; " + (currentClickTime - previousClickTime));
+                Debug.Log("clickCount; " + clickCount);
         }
 
-        //---------------------------------------------------------------
-        void AccelControl()
+            previousClickTime = currentClickTime;
+        
+        }
+
+    //---------------------------------------------------------------
+    void AccelControl()
         {
             InertiaTracker_Transform = Hmd_Transform;
 
@@ -355,38 +376,47 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
             //Vector3 Wand2Pos = Wand2.transform.pos;
 
 
-            if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad))
+//            if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.Touchpad))
+            if (Wand1.GetPressDown(SteamVR_Controller.ButtonMask.ApplicationMenu))
             {
                 //                            Debug.Log("GetPressDown");
 
-                InertiaTrackerXYZPos_t1 = InertiaTracker_Transform.localPosition;
-                //                Debug.Log("InertiaTrackerXYZPos_t1.x:" + InertiaTrackerXYZPos_t1.x);
+                InertiaTrackerPos_t1 = InertiaTracker_Transform.localPosition;
+            //                Debug.Log("InertiaTrackerPos_t1.x:" + InertiaTrackerPos_t1.x);
+                sample_t1 = Time.time;    
                 SamplingVelocity = true;
                 InertiaVector_1 = Vector3.zero; //initial condittion
                 InertiaVector_2 = Vector3.zero; //
             }
 
 
-            if (Wand1.GetPressUp(SteamVR_Controller.ButtonMask.Touchpad))
+//            if (Wand1.GetPressUp(SteamVR_Controller.ButtonMask.Touchpad))
+            if (Wand1.GetPressUp(SteamVR_Controller.ButtonMask.ApplicationMenu))
             {
                 //                            Debug.Log("GetPressUp");
-                InertiaTrackerXYZPos_t2 = InertiaTracker_Transform.localPosition;
+                InertiaTrackerPos_t2 = InertiaTracker_Transform.localPosition;
+                sample_t2 = Time.time;    
+                sample_deltaT = sample_t2 - sample_t1;
                 SamplingVelocity = false;
 
-                if (DoingLocomotion == false)
+            if (DoingLocomotion == false)
                 {
-                    InertiaVector_1 = InertiaTrackerXYZPos_t2 - InertiaTrackerXYZPos_t1;
-                    //                    Debug.Log("InertiaVector_1. X: " + InertiaVector_1.x);
-                    //                 Debug.Log("InertiaVector_1. Y: " + InertiaVector_1.y);            
-                }
-                else if (DoingLocomotion == true)
-                {
-                    InertiaVector_2 = InertiaTrackerXYZPos_t2 - InertiaTrackerXYZPos_t1;
-                    //                    Debug.Log("InertiaVector_2. X: " + InertiaVector_2.x);
-                    //                Debug.Log("InertiaVector_2. Z: " + InertiaVector_2.z);
-                }
+                    InertiaVector_1 = InertiaTrackerPos_t2 - InertiaTrackerPos_t1;
+                    InertiaVelocity_1 = InertiaVector_1 / sample_deltaT;
 
-                HorizontalVectorCheck();
+                //                    Debug.Log("InertiaVector_1. X: " + InertiaVector_1.x);
+                //                 Debug.Log("InertiaVector_1. Y: " + InertiaVector_1.y);            
+            }
+            else if (DoingLocomotion == true)
+                {
+                    InertiaVector_2 = InertiaTrackerPos_t2 - InertiaTrackerPos_t1;
+                    InertiaVelocity_2 = InertiaVector_2 / sample_deltaT;
+ 
+                //                    Debug.Log("InertiaVector_2. X: " + InertiaVector_2.x);
+                //                Debug.Log("InertiaVector_2. Z: " + InertiaVector_2.z);
+            }
+
+            HorizontalVectorCheck();
                 //                VerticalVelocityCheck(); 
 
             }
@@ -406,43 +436,60 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
             //have to check this first 
             if (DoingLocomotion == true)
             {
-                //stop if reverse inertia  - but magnitude should be a factor too?
-                if (Vector3.Dot(InertiaVector_1.normalized, InertiaVector_2.normalized) < -0.70f)
+                //stop if opposite inertia vector applied 
+                //even if  I want to move in that direction - sudden change is impossible IRL 
+                //ATTN:  needs to work if I have done several inertias too
+
+                //For normalized vectors Dot returns -1 if they point in completely opposite directions 
+                // 0 if the vectors are perpendicular. positive for vectors in the same general direction
+                if (Vector3.Dot(InertiaVector_1.normalized, InertiaVector_2.normalized) < -0.5f)
+                    {
+                        Debug.Log("opposite inertia");
+                        Torso_Rb.useGravity = false;
+
+                        InertiaVector_1 = Vector3.zero;
+                        InertiaVector_2 = Vector3.zero;
+
+                        StopCoroutine("Acceleration");//
+                        StartCoroutine("Decceleration");
+                        StopCoroutine("GazeTracking");
+
+                    }
+
+                //second inertia, if there is 
+                //check new acceleration while moving - needs to have higher threshold, to avoid unwanted motion 
+                //0.005 maybe too low,   0.0075 maybe too low 
+                if ((Mathf.Abs(InertiaVector_2.z) > 0.03f) || (Mathf.Abs(InertiaVector_2.x) > 0.03f))
                 {
-                    Debug.Log("Reverse inertia");
-                    //                    DoingLocomotion = false;
-                    //                SamplingVelocity = false;
+                    Debug.Log("second inertia");
                     Torso_Rb.useGravity = false;
-                    InertiaVector_1 = Vector3.zero;
-                    InertiaVector_2 = Vector3.zero;
 
-                    StopCoroutine("Acceleration");//
-                    StartCoroutine("Decceleration");
-                    StopCoroutine("GazeTracking");
+                    InertiaVector_1 = InertiaVector_2; //so that additional inertia changes can be made, and rest of code still works
+                    InertiaVector_1.y = 0f;
 
+                    StopCoroutine("Decceleration");//
+                    StartCoroutine("Acceleration");
+                    StartCoroutine("GazeTracking");
                 }
 
-                // stop Locomotion if no v on second click - have to allow some margin, esp for when things get intense 
-                //0.01f maybe too low, 0.02f still low? 
-                if ((Mathf.Abs(InertiaVector_2.z) < 0.03f) && (Mathf.Abs(InertiaVector_2.x) < 0.03f))
-                {
-                    Debug.Log("zero inertia");
-                    //                    DoingLocomotion = false;
-                    //                SamplingVelocity = false;
-                    Torso_Rb.useGravity = false;
-                    InertiaVector_1 = Vector3.zero;
-                    InertiaVector_2 = Vector3.zero;
 
-                    //                InertiaVector_2 = Vector3.zero;
-                    //                        InertiaVector_2 = GazeVector;
+                    // stop Locomotion if no v on second click - have to allow some margin, esp for when things get intense 
+                    //0.01f maybe too low, 0.02f still low? 
+                    if ((Mathf.Abs(InertiaVector_2.z) < 0.03f) && (Mathf.Abs(InertiaVector_2.x) < 0.03f))
+                    {
+                        Debug.Log("zero inertia");
+                        Torso_Rb.useGravity = false;
+                        InertiaVector_1 = Vector3.zero;
+                        InertiaVector_2 = Vector3.zero;
 
-                    StopCoroutine("Acceleration");//
-                    StartCoroutine("Decceleration");
-                    StopCoroutine("GazeTracking");
+                        StopCoroutine("Acceleration");//
+                        StartCoroutine("Decceleration");
+                        StopCoroutine("GazeTracking");
 
-                    if (DeccelCR_started == false) Debug.LogError("Decceleration NOT started");
+                        if (DeccelCR_started == false) Debug.LogError("Decceleration NOT started");
+                    }
                 }
-            }
+
             else if (DoingLocomotion == false)
             {
                 //first zx acceleration
@@ -450,7 +497,6 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
                 if ((Mathf.Abs(InertiaVector_1.z) > 0.0015f) || (Mathf.Abs(InertiaVector_1.x) > 0.0015f))
                 {
                     Debug.Log("first inertia");
-                    //              SamplingVelocity = false;
                     Torso_Rb.useGravity = false;
                     InertiaVector_1.y = 0f;
 
@@ -460,22 +506,6 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
                 }
             }
 
-            //check new acceleration while moving - needs to have higher threshold, to avoid unwanted motion 
-            //0.005 maybe too low 
-            if ((Mathf.Abs(InertiaVector_2.z) > 0.0075f) || (Mathf.Abs(InertiaVector_2.x) > 0.0075f))
-            {
-                //                            Debug.Log("secondainertia");
-                //                DoingLocomotion = true;
-                //            SamplingVelocity = false;
-                Torso_Rb.useGravity = false;
-
-                InertiaVector_1 = Vector3.zero;
-                InertiaVector_2.y = 0f;
-
-                StopCoroutine("Decceleration");//
-                StartCoroutine("Acceleration");
-                StartCoroutine("GazeTracking");
-            }
 
         }
 
@@ -494,20 +524,19 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
 
         IEnumerator Acceleration()
         {
-            //            Debug.Log("Acceleration #0");
             AccelCR_started = true;
             Torso_Rb.useGravity = false;
 
             if (DoingLocomotion == false)
             {
                 Debug.Log("Acceleration #1");
-                Torso_Rb.velocity = Vector3.Lerp(InertiaVector_1, InertiaVector_1 * accelBoost1, 20f * Time.deltaTime);
+//               Torso_Rb.velocity = Vector3.Lerp(InertiaVector_1, InertiaVector_1 * accelBoost1, 20f * Time.deltaTime);
+//               Torso_Rb.velocity = InertiaVelocity_1 * 5;
+               Torso_Rb.velocity = Vector3.Lerp(InertiaVelocity_1, InertiaVelocity_1 * 5, 20f * Time.deltaTime);
 
-                //                InertiaVector_Current = InertiaVector_1;
                 DoingLocomotion = true;
                 FOVRestriction("ON");
                 AnimateBullseye("UP");
-
                 yield return null;
             }
             else if (DoingLocomotion == true)
@@ -516,10 +545,10 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
                 //maybe NG            Torso_Rb.velocity = InertiaVector_1 + (InertiaVector_2 * 10f)  ; //can get too tricky?
 
                 //have to account for multiple direction changes, not just from 1 to 2 
-                //                Torso_Rb.velocity = Vector3.Lerp(InertiaVector_Current, InertiaVector_2 * accelBoost1, accelSmooth * Time.deltaTime);
-                Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, InertiaVector_2 * accelBoost1, 20f * Time.deltaTime);
+//                Torso_Rb.velocity = Vector3.Lerp(InertiaVector_Current, InertiaVector_2 * accelBoost1, accelSmooth * Time.deltaTime);
+//                Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, InertiaVector_2 * accelBoost1, 20f * Time.deltaTime);
+               Torso_Rb.velocity = Vector3.Lerp(InertiaVelocity_2, InertiaVelocity_2 * 5, 20f * Time.deltaTime);
 
-                //                InertiaVector_Current = InertiaVector_2;
                 DoingLocomotion = true;
                 FOVRestriction("ON");
                 AnimateBullseye("UP");
@@ -578,7 +607,7 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
                     //            Debug.Log("VelocityLimiter");
                     Torso_Rb.velocity = Vector3.ClampMagnitude(Torso_Rb.velocity, maxWalkSpeed);
 
-                    //this turns it off to quickly 
+                    //this turns it off to quickly ?
                     FOVRestriction("OFF");
                 }
             }
@@ -617,9 +646,10 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
             while (Torso_Rb.velocity.magnitude > 0f && Torso_Rb.velocity.magnitude < 0.1f) //
             {
                 //            Debug.Log("Decceleration #2");
-                Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, Vector3.zero, deccelSmooth * 2 * Time.deltaTime);
+ //               Torso_Rb.velocity = Vector3.Lerp(Torso_Rb.velocity, Vector3.zero, deccelSmooth * 2 * Time.deltaTime);
+                Torso_Rb.velocity = Vector3.ClampMagnitude(Torso_Rb.velocity, 0f);
 
-                //            DoingJump = false;
+            //            DoingJump = false;
                 DoingLocomotion = false;
                 //            Torso_Rb.useGravity = true;
                 GazeVectoringPermitted = false;
@@ -814,7 +844,7 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
 
             while (Physics.Raycast(ReverseRayOrigin, -Hmd_Transform.forward, out gazeRayHit, Mathf.Infinity, layerMask, QueryTriggerInteraction.Collide))
             {
-                print("ShowGazeCenter gazeRayHit; " + gazeRayHit.collider);
+                //print("ShowGazeCenter gazeRayHit; " + gazeRayHit.collider);
 
                 if (gazeRayHit.collider.name == "GazeUISphere")
                 {
@@ -908,7 +938,7 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
         //also to limit when it kicks in 
         private void GazeVectoringPermissionCheck()
         {
-            if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > +0.25f)
+            if (Vector3.Dot(Hmd_Transform.forward, Torso_Rb.velocity.normalized) > +0.5f)
             {
                 //            print("GazeVectoringPermitted = true; " + Time.time);
                 GazeVectoringPermitted = true;
@@ -954,7 +984,6 @@ Since this is the first implementation of artificial Locomotion, I wanted to pay
             //then Locomotion should be shut off, and not start moving again 
             if (currentGazeVsInertiaOk == false && previousGazeVsInertiaOk == true)
             {
-                Debug.Log("currentGazeVsInertiaOk == false: " + Time.time);
                 StartCoroutine("Decceleration");
             }
 

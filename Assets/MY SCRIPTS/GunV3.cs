@@ -109,16 +109,16 @@ public class GunV3 : MonoBehaviour{
 
         if (device.GetTouchDown(SteamVR_Controller.ButtonMask.Trigger))
         {
-            FireBullet();
-//           StartCoroutine("FireBullet");
+//            FireBullet();
+           StartCoroutine("FireBullet");
         }
     }
 
 
-    void FireBullet()
-//    IEnumerator FireBullet()
+//    void FireBullet()
+    IEnumerator FireBullet()
     {
-        Debug.Log("FireBullet GunV3");
+//        Debug.Log("FireBullet GunV3");
 
         //play bang
         AudioSource.PlayClipAtPoint(gunShot, transform.position);
@@ -135,33 +135,41 @@ public class GunV3 : MonoBehaviour{
 
         Destroy(bulletClone, bulletLife);
         //---------------------------------------------------------------
-        //bulletholes 
-        var fwd = transform.TransformDirection(Vector3.up);
+        //need to wait so raycast does not hit the bullet, and spawn a bullethole in the air!
+        yield return new WaitForSeconds(0.05f);
 
-        int layerMask = 1 << 8; ;
+        //bulletholes 
+        //        var fwd = transform.TransformDirection(Vector3.up);
+
+        //        int layerMask = 5; 
+        int layerMask = 1 << 5; ;
+        layerMask = ~layerMask;
 
         RaycastHit hit;
         //        Debug.DrawRay(transform.position, fwd * 100, Color.green, 5, true);
 
+//        RaycastHit[] hits;
+//        hits = Physics.RaycastAll(transform.position, transform.up, out hit, maxDist, layerMask, QueryTriggerInteraction.Ignore);
+
         if (Physics.Raycast(transform.position, transform.up, out hit, maxDist, layerMask, QueryTriggerInteraction.Ignore))
         {
-            Debug.Log("Hit");
+            //Debug.Log("Hit; " + hit.transform.gameObject.name);
 
             GameObject bulletHoleClone = Instantiate(bulletHole, hit.point + (hit.normal * floatInFrontOfWall), Quaternion.FromToRotation(Vector3.up, hit.normal)) as GameObject;
 
             bulletHoleClone.SetActive(true);
 
-            var MetalTarget = LayerMask.NameToLayer("Metal Target");
+//            var MetalTarget = LayerMask.NameToLayer("Metal Target");
 
             //play ping
-            if (hit.transform.gameObject.layer == MetalTarget)
+            if (hit.transform.gameObject.layer == LayerMask.NameToLayer("Metal Target"))
             {
-                //yield return new WaitForSeconds(0.05f);    
+                yield return new WaitForSeconds(0.01f);    
                 AudioSource.PlayClipAtPoint(bulletHitSound, bulletHoleClone.transform.position);
             }
 
             Destroy(bulletHoleClone, bulletHoleLife);
-//            yield return null;
+            yield return null;
          }
 
     }//    IEnumerator FireBullet()
